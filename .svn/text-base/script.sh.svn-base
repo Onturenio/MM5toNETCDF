@@ -1,6 +1,0 @@
-#set -ex
-for i in $(seq 1 100);do
-codigo=$(head -$i cod|tail -1)
-line=$(head -$i if|tail -1)
-echo $line | sed s\#irec\#$codigo\#
-done
