@@ -1,0 +1,202 @@
+MM5toGrADS/CHANGES
+diff -r1.1.1.1 -r3.1
+> You will find descriptions of the changes to the MM5toGrADS version 3
+> source code in this file. For the difference file between the
+> current release and the last release, please see
+> Diff/diff.ddmmmyy. The 'current release' refers to the newest
+> source code, while the 'last release' refers to the source code
+> with the last change. Each release will be a complete tar file
+> such as this. The bug fixes/changes in the diff.ddmmmyy
+> files will be the differences between successive releases.
+> 
+> The current release is 3.1 (December 19, 2002)
+> 
+> ========================================================
+> 
+> Bug fixes and changes in V3.1:
+> 
+> 
+> Bug fixes:
+> 
+> - Make use of TAPFRQ to calcalate time intervals, rather than INTTIM. 
+>   This is done to ensure correct calculation of time intervals when 
+>   INCTAP is not equal to 1.
+> 
+>   Affected file:
+>   src/grads.F
+> 
+> - Correct allocation of pslv array when using MMINPUT_DOMAINx data.
+> 
+>   Affected file:
+>   src/grads.F
+> 
+> - Correct counting of 2D variables if using input files other than 
+>   MMOUT_DOMAINx.
+> 
+>   Affected file:
+>   src/grads.F
+> 
+> - Fix to prevent NaNs in pressure level lists on SGI.
+> 
+>   Affected file:
+>   src/grads.F
+> 
+> 
+> Changes and improvements:
+> 
+> - Add ability to display expanded domains.
+> 
+>   Affected file:
+>   src/grads.F
+> 
+> - Add improved compile options for linux
+> 
+>   Affected file:
+>   Makefile
+> 
+===================================================================
+MM5toGrADS/Makefile
+diff -r1.1.1.1 -r3.1
+89c89
+< 		"LN		= $(LN)" 	"MACH		= SGI"		\
+---
+> 		"LN		= $(LN)" 	"MACH		= linux"		\
+92c92
+< 		"FC		= pgf90"	"FCFLAGS	= -I. -Mfree -g -tp p6 -pc 32 -byteswapio"\
+---
+> 		"FC		= pgf90"	"FCFLAGS	= -I. -Mfree -O2 -tp p6 -pc 32 -byteswapio"\
+===================================================================
+MM5toGrADS/README
+diff -r1.1.1.1 -r3.1
+1,2c1,2
+< VERSION 0 of MM5 to GrADS converter (release 0-3)
+< (updated March 7, 2002)
+---
+> VERSION 3-1 of MM5 to GrADS converter (release 3-1)
+> (updated December 17, 2002)
+22c22
+<   Version 0.3
+---
+>   Version 3.0
+===================================================================
+MM5toGrADS/src/grads.F
+diff -r1.1.1.1 -r3.5
+110a111,115
+> !Cb  set all pressure levels to 0 before reading them in, to 
+> !    prevent NaN's in undefined pressure levels
+>      plev = 0.0
+> !CB
+> 
+217,218c222,228
+<         mix=bhi(16,1)
+<         mjx=bhi(17,1)
+---
+>         if( index <= 2 .and. bhi(8,1) == 1 .and. bhi(15,1) == 0) then
+>           mix=bhi(9,1)
+>           mjx=bhi(10,1)
+>         else
+>           mix=bhi(16,1)
+>           mjx=bhi(17,1)
+>         endif
+238a249
+>         if ( index == 11 ) ndt=nint(bhr(4,12)/60.)
+695c706
+<         allocate(z(mix,mjx,mkx))
+---
+>         if(iallo.eq.0) allocate(z(mix,mjx,mkx))
+998,1037c1009,1048
+<       IFPS=IFPS-1
+<       IFTG=IFTG-1
+<       IFRC=IFRC-1
+<       IFRN=IFRN-1
+<       IFTER=IFTER-1
+<       IFXMF=IFXMF-1
+<       IFDMF=IFDMF-1
+<       IFCOR=IFCOR-1
+<       IFTR=IFTR-1
+<       IFXLAT=IFXLAT-1
+<       IFXLON=IFXLON-1
+<       IFLU=IFLU-1
+<       IFSC=IFSC-1
+<       IFPBLH=IFPBLH-1
+<       IFPBLR=IFPBLR-1
+<       IFSHF=IFSHF-1
+<       IFLHF=IFLHF-1
+<       IFUST=IFUST-1
+<       IFSWD=IFSWD-1
+<       IFLWD=IFLWD-1
+<       IFSWO=IFSWO-1
+<       IFLWO=IFLWO-1
+<       IFSST=IFSST-1
+<       IFST1=IFST1-1
+<       IFST2=IFST2-1
+<       IFST3=IFST3-1
+<       IFST4=IFST4-1
+<       IFSM1=IFSM1-1
+<       IFSM2=IFSM2-1
+<       IFSM3=IFSM3-1
+<       IFSM4=IFSM4-1
+<       IFCAN=IFCAN-1
+<       IFSND=IFSND-1
+<       IFSSI=IFSSI-1
+<       IFSRO=IFSRO-1
+<       IFURO=IFURO-1
+<       IFT2M=IFT2M-1
+<       IFQ2M=IFQ2M-1
+<       IFU10=IFU10-1
+<       IFV10=IFV10-1
+---
+>       IFPS  =  max(IFPS-1,0)
+>       IFTG  =  max(IFTG-1,0)
+>       IFRC  =  max(IFRC-1,0)
+>       IFRN  =  max(IFRN-1,0)
+>       IFTER = max(IFTER-1,0)
+>       IFXMF = max(IFXMF-1,0)
+>       IFDMF = max(IFDMF-1,0)
+>       IFCOR = max(IFCOR-1,0)
+>       IFTR  =  max(IFTR-1,0)
+>       IFXLAT=max(IFXLAT-1,0)
+>       IFXLON=max(IFXLON-1,0)
+>       IFLU  =  max(IFLU-1,0)
+>       IFSC  =  max(IFSC-1,0)
+>       IFPBLH=max(IFPBLH-1,0)
+>       IFPBLR=max(IFPBLR-1,0)
+>       IFSHF = max(IFSHF-1,0)
+>       IFLHF = max(IFLHF-1,0)
+>       IFUST = max(IFUST-1,0)
+>       IFSWD = max(IFSWD-1,0)
+>       IFLWD = max(IFLWD-1,0)
+>       IFSWO = max(IFSWO-1,0)
+>       IFLWO = max(IFLWO-1,0)
+>       IFSST = max(IFSST-1,0)
+>       IFST1 = max(IFST1-1,0)
+>       IFST2 = max(IFST2-1,0)
+>       IFST3 = max(IFST3-1,0)
+>       IFST4 = max(IFST4-1,0)
+>       IFSM1 = max(IFSM1-1,0)
+>       IFSM2 = max(IFSM2-1,0)
+>       IFSM3 = max(IFSM3-1,0)
+>       IFSM4 = max(IFSM4-1,0)
+>       IFCAN = max(IFCAN-1,0)
+>       IFSND = max(IFSND-1,0)
+>       IFSSI = max(IFSSI-1,0)
+>       IFSRO = max(IFSRO-1,0)
+>       IFURO = max(IFURO-1,0)
+>       IFT2M = max(IFT2M-1,0)
+>       IFQ2M = max(IFQ2M-1,0)
+>       IFU10 = max(IFU10-1,0)
+>       IFV10 = max(IFV10-1,0)
+1233c1244,1245
+<       if(IFPSLV.EQ.1.and. (index.eq.11.or.index.eq.5) )then
+---
+>       if(IFPSLV.EQ.1.and. (index.eq.11.or.index.eq.5)  &
+>                     .and. stat_pslv == 0 )then
+1464a1477
+> 
+1563a1577,1580
+>         if( index <= 2 .and. bhi(8,1) == 1 .and. bhi(15,1) == 0) then
+>             centeri=float(bhi(9,1))/2.
+>             centerj=float(bhi(10,1))/2.
+>         else
+1565a1583
+>         endif

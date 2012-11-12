@@ -1,0 +1,13 @@
+      subroutine writeout(var,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,irec)
+      implicit none
+
+      integer mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,irec
+      integer i,j,k
+      real var(mix,mjx,mkx)
+
+      do k=ka,kb,kc
+        write(80,rec=irec) ((var(i,j,k),j=jx1,jx2),i=ix1,ix2)
+        irec=irec+1
+      enddo
+
+      end subroutine writeout

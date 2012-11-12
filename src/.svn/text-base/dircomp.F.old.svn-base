@@ -1,0 +1,42 @@
+      SUBROUTINE DIRCOMP(U,V,i1,j1,k1,DIR)
+      implicit none
+      integer i1,j1,k1
+      REAL U(i1,j1,k1),V(i1,j1,k1),DIR(i1,j1,k1)
+
+      integer i,j,k
+      real SPDTST,RTOD,DCHALF,XSPD,ddir
+      DATA  SPDTST/1E-10/, RTOD/57.2957795/, DCHALF/180.0/
+
+      do k=1,k1
+      do j=1,j1-1
+      do i=1,i1-1
+         XSPD = SQRT(U(i,j,k)*U(i,j,k) + V(i,j,k)*V(i,j,k))
+!CB
+!CB Adding my own routine here for direction, not to happy with the given one
+!CB
+        if((abs(u(i,j,k)).le.1.E-3).AND.(v(i,j,k).gt.0.))then
+          ddir=90.
+        elseif((abs(u(i,j,k)).le.1.E-3).AND.(v(i,j,k).lt.0.))then
+          ddir=270.
+        elseif(u(i,j,k).gt.0.)then
+          ddir=atan(v(i,j,k)/u(i,j,k))*RTOD
+        elseif(u(i,j,k).lt.0.)then
+          ddir=atan(v(i,j,k)/u(i,j,k))*RTOD+DCHALF
+        endif
+  
+        dir(i,j,k)=270.-ddir
+        if(dir(i,j,k).lt.  0.) dir(i,j,k)=dir(i,j,k)+360.
+        if(dir(i,j,k).gt.360.) dir(i,j,k)=dir(i,j,k)-360.
+  
+!CB  
+!CB       IF (XSPD .LT. SPDTST) THEN
+!CB          DIR(i,j,k) = 0.0
+!CB       ELSE
+!CB          DIR(i,j,k) = ATAN2(U(i,j,k),V(i,j,k)) * RTOD + DCHALF
+!CB       ENDIF
+      enddo
+      enddo
+      enddo
+
+      RETURN
+      END

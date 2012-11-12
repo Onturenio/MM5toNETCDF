@@ -1,0 +1,113 @@
+====== 3D variables ======
+
+-- Native model output --
+300      U          ! X wind (grid-relative if IFMAP=0)
+301      V          ! Y wind (grid-relative if IFMAP=0)
+302      W          ! Vertical velocity
+303      PP         ! Pressure perturbation
+304      T          ! Temperature
+305      Q          ! Water vapor mixing ratio
+306      CLW        ! Cloud water mixing ratio
+307      RNW        ! Rain water mixing ratio
+308      RTND       ! Radiation tendency
+309      Z          ! Height (above ground) of the sigma levels
+310      TKE        ! Turbulence kinetic energy (if avail.)
+311      ICE        ! Ice water mixing ratio (if avail.)
+312      SNOW       ! Snow water mixing ratio (if avail.)
+313      GRAUP      ! Graupel mixing ratio (if avail.)
+314      NCI        ! Number concentration of ice (if avail.)
+
+-- Derived model output --
+315      TD         ! Dewpoint temperature
+316      RH         ! Relative humidity
+317      TH         ! Potential temperature
+318      THE        ! Equivalent potential temperature
+319      PRS        ! Pressure
+320      VOR        ! Vorticity (vertical component)
+321      PV         ! Potential vorticity
+322      DIV        ! Divergence (horizontal component)
+323      DIR        ! Wind direction
+324      TADV       ! Temperature advection (horizontal)
+325      DBZ        ! Reflectivity (Note: should only be used for output
+326      H          ! Geopotential height
+
+
+====== 2D variables ======
+
+-- Native model output --
+200      PS         ! P-star
+201      TG         ! Ground temperature
+202      RC         ! Accumulated convective precipitation
+203      RN         ! Accumulated non-convective precipitation
+204      TER        ! Terrain height above sea level
+205      XMF        ! Map-scale factor on cross points
+206      DMF        ! Map-scale factor on dot points
+207      COR        ! Corilois parameter
+208      TR         ! Infinite reservoir temp
+209      XLAT       ! Latitude on cross points
+210      XLON       ! Longitude on cross points
+211      LU         ! Land use category
+212      VGF        ! Vegetation coverage (if avail.)
+213      SC         ! Snow cover
+214      PBLH       ! PBL depth
+215      PBLR       ! PBL regime
+216      SHF        ! Surface sensible heat flux
+217      LHF        ! Surface latent heat flux
+218      GHF        ! Ground heat flux (if avail.)
+219      UST        ! Frictional velocity (u-star)
+220      SWD        ! Surface downward shortwave radiation
+221      LWD        ! Surface downward longwave radiation
+222      SWO        ! Top outgoing shortwave radiation
+223      LWO        ! Top outgoing longwave radiation
+224      SST        ! Sea surface temperature (if avail.)
+225      MAV        ! Surface moisture availablity
+226      ST1        ! SOIL TEMP 1 (if avail.)
+227      ST2        ! SOIL TEMP 2 (if avail.)
+228      ST3        ! SOIL TEMP 3 (if avail.)
+229      ST4        ! SOIL TEMP 4 (if avail.)
+229      ST5        ! SOIL TEMP 5 (if avail.)
+230      ST6        ! SOIL TEMP 6 (if avail.)
+231      SM1        ! SOIL MOISTURE 1 (if avail.)
+232      SM2        ! SOIL MOISTURE 2 (if avail.)
+233      SM3        ! SOIL MOISTURE 3 (if avail.)
+234      SM4        ! SOIL MOISTURE 4 (if avail.)
+235      SW1        ! SOIL WATER 1 (if avail.)
+236      SW2        ! SOIL WATER 2 (if avail.)
+237      SW3        ! SOIL WATER 3 (if avail.)
+238      SW4        ! SOIL WATER 4 (if avail.)
+239      CAN        ! CANOPY MOISTURE (if avail.)
+240      SNH        ! Physical snow height (if avail.)
+241      SND        ! Water equivalent of snow depth (SNODPTH) (if avail.)
+242      WSD        ! Water equivalent of snow depth (WEASD) (if avail.)
+243      SSI        ! Sea Ice (if avail.)
+245      SIF        ! Sea Ice Fraction (if avail.)
+246      SRO        ! Surface Runoff (if avail.)
+247      URO        ! Underground Runoff (if avail.)
+248      T2M        ! 2 m Temperature (if avail.)
+249      Q2M        ! 2 m Mixing Ratio (if avail.)
+250      U10        ! 10 m U wind component (if avail.)
+251      V10        ! 10 m V wind component (if avail.)
+252      ALB        ! Albedo (fraction ) (if avail.)
+253      ABB        ! Background Albedo (% ) (if avail.)
+254      ASB        ! Max snow Albedo (% ) (if avail.)
+
+-- Derived model output --
+255      PSLV       ! Sea level pressure
+256      CREF       ! Composite reflectivity (Note: should only be used for
+257      ICLW       ! Integrated cloud water
+258      IRNW       ! Integrated rain water
+259      PWAT       ! Precipitable water
+260      CLFR       ! Cloud fraction at low level
+261      CLFR       ! Cloud fraction at mid level
+262      CLFR       ! Cloud fraction at hight level
+
+
+-- Added by us --
+263      LM         ! Land mask
+264      MV10       ! Wind module 10 m
+265      DIR10      ! Wind direction 10 m
+266      XLATD      ! Latitude Dot points
+267      XLOND      ! Longitude Dot points
+
+327      RHO        ! Density
+328      MV         ! Wind module

@@ -1,0 +1,56 @@
+      subroutine lninterp(var,prs,pk,mix,mjx,mkx,nplevs,plev,ptmp)
+      implicit none
+      integer nplevs,mix,mjx,mkx
+      real var(mix,mjx,mkx),prs(mix,mjx,mkx)
+      integer pk(mix,mjx,nplevs)
+      real plev(100),ptmp(mix,mjx,nplevs)
+ 
+      integer i,j,k,n,ku,kd
+ 
+      do n=1,nplevs
+        do i=1,mix-1
+        do j=1,mjx-1
+          if(pk(i,j,n).eq.-1)then
+            ku=mkx-1
+            kd=mkx
+          ptmp(i,j,n)=var(i,j,ku)+                              &
+                         (var(i,j,kd)-var(i,j,ku))*               &
+                         (alog(plev(n))-alog(prs(i,j,ku)))/       &
+                         (alog(prs(i,j,kd))-alog(prs(i,j,ku)))
+            print*, 'Por debajo'
+            print*,'pu=',prs(i,j,ku), 'pdown=',prs(i,j,kd),'plev=',plev(1)
+            print*, 'Valores',var(i,j,ku), var(i,j,kd), ptmp(i,j,n)
+            if(ptmp(i,j,n).gt.350)stop
+          elseif(pk(i,j,n).eq.-2)then
+            ku=1
+            kd=2
+           ! print*, 'Por encima'
+           ! print*, 'Pdown=',prs(i,j,kd),'Pup=',prs(i,j,ku), 'plev=', plev(nplevs)
+           ! ptmp(i,j,n)=var(i,j,ku)+                              &
+           !              (var(i,j,kd)-var(i,j,ku))*               &
+           !              (alog(plev(n))-alog(prs(i,j,ku)))/       &
+           !              (alog(prs(i,j,kd))-alog(prs(i,j,ku)))
+           ! print*, 'Valores ',var(i,j,kd), var(i,j,ku), ptmp(i,j,n)
+           ! stop
+          else
+            ku=pk(i,j,n)-1
+            kd=pk(i,j,n)
+          endif
+          ptmp(i,j,n)=var(i,j,ku)+                              &
+                         (var(i,j,kd)-var(i,j,ku))*               &
+                         (alog(plev(n))-alog(prs(i,j,ku)))/       &
+                         (alog(prs(i,j,kd))-alog(prs(i,j,ku)))
+        enddo
+        enddo
+      enddo
+
+      do n=1,nplevs
+        do i=1,mix-1
+        do j=1,mjx-1
+          var(i,j,n)=ptmp(i,j,n)
+        enddo
+        enddo
+      enddo
+ 
+      return
+      end

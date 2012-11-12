@@ -1,0 +1,590 @@
+===================================================================
+oGrADS/CHANGES
+diff -r3.1 -r3.2
+11c11
+< The current release is 3.1 (December 19, 2002)
+---
+> The current release is 3.2 (December 23, 2004)
+13a14
+> Bug fixes and changes in V3.2:
+15c16,33
+< Bug fixes and changes in V3.1:
+---
+> Bug fixes:
+> 
+> - Correct the time in the control file
+> 
+>   Affectd file:
+>   src/grads.F
+> 
+> - Correct the reading of the TKE variable
+> 
+>   Affectd file:
+>   src/grads.F
+> 
+> - Fix the plotting of field PV, if the input file is MMOUTP
+> 
+>   Affectd file:
+>   src/grads.F
+> 
+> Changes and improvements:
+16a35,56
+> - Add extra fields to the output list. Extra fields are:
+>   Vegetation coverage; Ground heat flux; Surface moisture 
+>   availablity; soil water; Physical snow height; and
+>   albedo
+> 
+>   Affected files:
+>   src/grads.F
+>   namelist.input
+> 
+> - Add INTEL compiler flags. PGI will remain the default.
+>   To compile with INTEL, type "make intel"
+> 
+>   Affected file:
+>   Makefile
+> 
+> - Add the ability to input MMOUTP files
+>  
+>   Affected file:
+>   src/grads.F
+> 
+> ========================================================
+> Bug fixes and changes in V3.1:
+===================================================================
+oGrADS/Makefile
+diff -r3.1 -r3.2
+105a106,117
+> intel:
+> 	"Compiling for Linux with INTEL compiler" ;		\
+> 		( $(CD) src ; $(MAKE) all				\
+> 		"RM		= $(RM)" 	"RM_LIST	= $(RM_LIST)"	\
+> 		"LN		= $(LN)" 	"MACH		= linux"		\
+> 		"MAKE		= $(MAKE)"	"CPP		= /lib/cpp"	\
+> 		"CPPFLAGS	= -I. -C -traditional -DRECLENBYTE"	\
+> 		"FC		= ifort"	"FCFLAGS	= -I. -FR -pc 32 -convert big_endian"\
+> 		"LDOPTIONS	= " 		"CFLAGS		= -I."		\
+> 		"LOCAL_LIBRARIES= " ) ; \
+> 		( $(RM) grads.exe ; $(LN) src/grads.exe . ) ;
+> 
+===================================================================
+oGrADS/README
+diff -r3.1 -r3.2
+1,2c1,2
+< VERSION 3-1 of MM5 to GrADS converter (release 3-1)
+< (updated December 17, 2002)
+---
+> VERSION 3 of MM5 to GrADS converter (release 3-2)
+> (updated December 23, 2004)
+32,33d31
+<   Last modified:   8 February 2002
+< 
+84,86c82
+<        Email me:  bryan@essc.psu.edu
+< 
+< 	or, ask mesouser@ncar.ucar.edu
+---
+> 	    ask mesouser@ucar.edu
+===================================================================
+oGrADS/namelist.input
+diff -r3.0 -r3.1
+136,159c136,170
+<       IFSC    = 1      ! Snow cover
+<       IFPBLH  = 1      ! PBL depth
+<       IFPBLR  = 1      ! PBL regime
+<       IFSHF   = 1      ! Surface sensible heat flux
+<       IFLHF   = 1      ! Surface latent heat flux
+<       IFUST   = 1      ! Frictional velocity (u-star)
+<       IFSWD   = 1      ! Surface downward shortwave radiation
+<       IFLWD   = 1      ! Surface downward longwave radiation
+<       IFSWO   = 1      ! Top outgoing shortwave radiation
+<       IFLWO   = 1      ! Top outgoing longwave radiation
+<       IFSST   = 1      ! Sea surface temperature (if avail.)
+<       IFST1   = 1      ! SOIL TEMP 1 (if avail.)
+<       IFST2   = 1      ! SOIL TEMP 2 (if avail.)
+<       IFST3   = 1      ! SOIL TEMP 3 (if avail.)
+<       IFST4   = 1      ! SOIL TEMP 4 (if avail.)
+<       IFSM1   = 1      ! SOIL MOISTURE 1 (if avail.)
+<       IFSM2   = 1      ! SOIL MOISTURE 2 (if avail.)
+<       IFSM3   = 1      ! SOIL MOISTURE 3 (if avail.)
+<       IFSM4   = 1      ! SOIL MOISTURE 4 (if avail.)
+<       IFCAN   = 1      ! CANOPY MOISTURE (if avail.)
+<       IFSND   = 1      ! Water equivalent of snow depth (if avail.)
+<       IFSSI   = 1      ! Sea Ice (if avail.)
+<       IFSRO   = 1      ! Surface Runoff (if avail.)
+<       IFURO   = 1      ! Underground Runoff (if avail.)
+---
+>       IFVGF   = 0      ! Vegetation coverage (if avail.)
+>       IFSC    = 0      ! Snow cover
+>       IFPBLH  = 0      ! PBL depth
+>       IFPBLR  = 0      ! PBL regime
+>       IFSHF   = 0      ! Surface sensible heat flux
+>       IFLHF   = 0      ! Surface latent heat flux
+>       IFGHF   = 0      ! Ground heat flux (if avail.)
+>       IFUST   = 0      ! Frictional velocity (u-star)
+>       IFSWD   = 0      ! Surface downward shortwave radiation
+>       IFLWD   = 0      ! Surface downward longwave radiation
+>       IFSWO   = 0      ! Top outgoing shortwave radiation
+>       IFLWO   = 0      ! Top outgoing longwave radiation
+>       IFSST   = 0      ! Sea surface temperature (if avail.)
+>       IFMAV   = 0      ! Surface moisture availablity
+>       IFST1   = 0      ! SOIL TEMP 1 (if avail.)
+>       IFST2   = 0      ! SOIL TEMP 2 (if avail.)
+>       IFST3   = 0      ! SOIL TEMP 3 (if avail.)
+>       IFST4   = 0      ! SOIL TEMP 4 (if avail.)
+>       IFST5   = 0      ! SOIL TEMP 5 (if avail.)
+>       IFST6   = 0      ! SOIL TEMP 6 (if avail.)
+>       IFSM1   = 0      ! SOIL MOISTURE 1 (if avail.)
+>       IFSM2   = 0      ! SOIL MOISTURE 2 (if avail.)
+>       IFSM3   = 0      ! SOIL MOISTURE 3 (if avail.)
+>       IFSM4   = 0      ! SOIL MOISTURE 4 (if avail.)
+>       IFSW1   = 0      ! SOIL WATER 1 (if avail.)
+>       IFSW2   = 0      ! SOIL WATER 2 (if avail.)
+>       IFSW3   = 0      ! SOIL WATER 3 (if avail.)
+>       IFSW4   = 0      ! SOIL WATER 4 (if avail.)
+>       IFCAN   = 0      ! CANOPY MOISTURE (if avail.)
+>       IFSNH   = 0      ! Physical snow height (if avail.)
+>       IFSND   = 0      ! Water equivalent of snow depth (SNODPTH) (if avail.)
+>       IFWSD   = 0      ! Water equivalent of snow depth (WEASD) (if avail.)
+>       IFSSI   = 0      ! Sea Ice (if avail.)
+>       IFSRO   = 0      ! Surface Runoff (if avail.)
+>       IFURO   = 0      ! Underground Runoff (if avail.)
+163a175,177
+>       IFALB   = 1      ! Albedo (fraction ) (if avail.)
+>       IFABB   = 1      ! Background Albedo (% ) (if avail.)
+>       IFASB   = 1      ! Max snow Albedo (% ) (if avail.)
+===================================================================
+oGrADS/src/grads.F
+diff -r3.5 -r3.10
+20,23c20,25
+<                                   xlat,xlon,lu,pblh,pblr,shf,          &
+<                                   lhf,ust,swd,lwd,sst,st1,st2,st3,     &
+<                                   st4,sm1,sm2,sm3,sm4,swo,lwo,can,     &
+<                                   snd,ssi,sro,uro,t2m,q2m,u10,v10,     &
+---
+>                                   xlat,xlon,lu,vgf,pblh,pblr,          &
+>                                   shf,lhf,ghf,ust,swd,lwd,sst,mav,     &
+>                                   st1,st2,st3,st4,st5,st6,             &
+>                                   sm1,sm2,sm3,sm4,sw1,sw2,sw3,sw4,     &
+>                                   swo,lwo,can,snh,snd,wsd,ssi,sro,uro, &
+>                                   t2m,q2m,u10,v10,alb,abb,asb,         &
+67,71c69,75
+<               ifxlat,ifxlon,iflu,ifsc,ifpblh,ifpblr,ifshf,iflhf,ifust,   &
+<               ifswd,iflwd,ifsst,ifpslv,ifcref,ificlw,ifirnw,ifpwat,      &
+<               ifclfr,ifst1,ifst2,ifst3,ifst4,ifsm1,ifsm2,ifsm3,ifsm4,    &
+<               ifswo,iflwo,ifcan,ifsnd,ifssi,ifsro,ifuro,ift2m,ifq2m,     &
+<               ifu10,ifv10
+---
+>               ifxlat,ifxlon,iflu,ifvgf,ifsc,ifpblh,ifpblr,ifshf,iflhf,   &
+>               ifghf,ifust,ifswd,iflwd,ifsst,ifpslv,ifcref,               &
+>               ificlw,ifirnw,ifpwat,ifclfr,ifmav,                         &
+>               ifst1,ifst2,ifst3,ifst4,ifst5,ifst6,                       &
+>               ifsm1,ifsm2,ifsm3,ifsm4,ifsw1,ifsw2,ifsw3,ifsw4,           &
+>               ifswo,iflwo,ifcan,ifsnh,ifsnd,ifwsd,ifssi,ifsro,ifuro,     &
+>               ift2m,ifq2m,ifu10,ifv10,ifalb,ifabb,ifasb
+73c77
+<       NAMELIST /RECORD1/  timin,timax,nskip,iflinux,ifmap,ifsfc,         &
+---
+>       NAMELIST /RECORD1/  timin,timax,nskip,iflinux,ifmap,ifsfc,            &
+75c79
+<       NAMELIST /RECORD10/ ifu,ifv,ifw,ifpp,ift,ifq,ifclw,ifrnw,ifrtnd,   &
+---
+>       NAMELIST /RECORD10/ ifu,ifv,ifw,ifpp,ift,ifq,ifclw,ifrnw,ifrtnd,      &
+77c81
+<       NAMELIST /RECORD11/ iftd,ifrh,ifth,ifthe,ifprs,ifvor,ifpv,ifdiv,   &
+---
+>       NAMELIST /RECORD11/ iftd,ifrh,ifth,ifthe,ifprs,ifvor,ifpv,ifdiv,      &
+79,84c83,89
+<       NAMELIST /RECORD12/ ifps,iftg,ifrc,ifrn,ifter,ifxmf,ifdmf,ifcor,   &
+<                           iftr,ifxlat,ifxlon,iflu,ifsc,ifpblh,ifpblr,    &
+<                           ifshf,iflhf,ifust,ifswd,iflwd,ifswo,iflwo,     &
+<                           ifsst,ifst1,ifst2,ifst3,ifst4,ifsm1,ifsm2,     &
+<                           ifsm3,ifsm4,ifcan,ifsnd,ifssi,ifsro,ifuro,     &
+<                           ift2m,ifq2m,ifu10,ifv10
+---
+>       NAMELIST /RECORD12/ ifps,iftg,ifrc,ifrn,ifter,ifxmf,ifdmf,ifcor,      &
+>                           iftr,ifxlat,ifxlon,iflu,ifvgf,ifsc,ifpblh,ifpblr, &
+>                           ifshf,iflhf,ifghf,ifust,ifswd,iflwd,ifswo,iflwo,  &
+>                           ifsst,ifmav,ifst1,ifst2,ifst3,ifst4,ifst5,ifst6,  &
+>                           ifsm1,ifsm2,ifsm3,ifsm4,ifsw1,ifsw2,ifsw3,ifsw4,  &
+>                           ifcan,ifsnh,ifsnd,ifwsd,ifssi,ifsro,ifuro,        &
+>                           ift2m,ifq2m,ifu10,ifv10,ifalb,ifabb,ifasb
+177a183
+> 
+179,184c185,191
+<              IFXLAT+IFXLON+IFLU+IFSC+IFPBLH+IFPBLR+IFSHF+IFLHF+        &
+<              IFUST+IFSWD+IFLWD+IFSST+IFPSLV+IFCREF+IFICLW+             &
+<              IFIRNW+IFPWAT+IFCLFR+IFCLFR+IFCLFR+IFST1+IFST2+           &
+<              IFST3+IFST4+IFSM1+IFSM2+IFSM3+IFSM4+IFSWO+IFLWO+          &
+<              IFCAN+IFSND+IFSSI+IFSRO+IFURO+IFT2M+IFQ2M+IFU10+          &
+<              IFV10
+---
+>              IFXLAT+IFXLON+IFLU+IFVGF+IFSC+IFPBLH+IFPBLR+              &
+>              IFSHF+IFLHF+IFGHF+IFUST+IFSWD+IFLWD+IFSST+IFPSLV+         &
+>              IFCREF+IFICLW+IFIRNW+IFPWAT+IFCLFR+IFCLFR+IFCLFR+         &
+>              IFMAV+IFST1+IFST2+IFST3+IFST4+IFST5+IFST6+                &
+>              IFSM1+IFSM2+IFSM3+IFSM4+IFSW1+IFSW2+IFSW3+IFSW4+          &
+>              IFSWO+IFLWO+IFCAN+IFSNH+IFSND+IFWSD+IFSSI+IFSRO+IFURO+    &
+>              IFT2M+IFQ2M+IFU10+IFV10+IFALB+IFABB+IFASB
+249c256
+<         if ( index == 11 ) ndt=nint(bhr(4,12)/60.)
+---
+>         if ( index == 11 ) ndt=nint(bhr(4,12))
+258c265
+<         iice=bhi(16,index)
+---
+>         iice=bhi(18,index)
+387a395,399
+>           elseif(name(1:9).eq.'W        ')then
+>             if(iallo.eq.0) allocate(w(end_index(1),end_index(2),end_index(3)))
+>             read(ifile,iostat=ierr) w
+>             sample=w(1,1,kl)
+>             stat_w=1
+399a412,416
+>           elseif(name(1:9).eq.'TKE      ')then
+>             if(iallo.eq.0) allocate(tke(mix,mjx,mkx+1))
+>             read(ifile,iostat=ierr) tke
+>             sample=tke(1,1,kl)
+>             stat_tke=1
+466a484,488
+>           elseif(name.eq.'VEGFRC   ')then
+>             if(iallo.eq.0) allocate(vgf(mix,mjx))
+>             read(ifile,iostat=ierr) vgf
+>             sample=vgf(1,1) 
+>             if(iallo.eq.0) IFVGF=IFVGF+1
+496a519,523
+>           elseif(name.eq.'GRNFLX   ')then
+>             if(iallo.eq.0) allocate(ghf(mix,mjx))
+>             read(ifile,iostat=ierr) ghf
+>             sample=ghf(1,1) 
+>             if(iallo.eq.0) IFGHF=IFGHF+1
+521a549,553
+>           elseif(name.eq.'MAVAIL   ')then
+>             if(iallo.eq.0) allocate(mav(mix,mjx))
+>             read(ifile,iostat=ierr) mav
+>             sample=mav(1,1) 
+>             if(iallo.eq.0) IFMAV=IFMAV+1
+541a574,583
+>           elseif(name.eq.'SOIL T 5 ')then
+>             if(iallo.eq.0) allocate(st5(mix,mjx))
+>             read(ifile,iostat=ierr) st5
+>             sample=st5(1,1) 
+>             if(iallo.eq.0) IFST5=IFST5+1
+>           elseif(name.eq.'SOIL T 6 ')then
+>             if(iallo.eq.0) allocate(st6(mix,mjx))
+>             read(ifile,iostat=ierr) st6
+>             sample=st6(1,1) 
+>             if(iallo.eq.0) IFST6=IFST6+1
+561a604,623
+>           elseif(name.eq.'SOIL W 1 ')then
+>             if(iallo.eq.0) allocate(sw1(mix,mjx))
+>             read(ifile,iostat=ierr) sw1
+>             sample=sw1(1,1) 
+>             if(iallo.eq.0) IFSW1=IFSW1+1
+>           elseif(name.eq.'SOIL W 2 ')then
+>             if(iallo.eq.0) allocate(sw2(mix,mjx))
+>             read(ifile,iostat=ierr) sw2
+>             sample=sw2(1,1) 
+>             if(iallo.eq.0) IFSW2=IFSW2+1
+>           elseif(name.eq.'SOIL W 3 ')then
+>             if(iallo.eq.0) allocate(sw3(mix,mjx))
+>             read(ifile,iostat=ierr) sw3
+>             sample=sw3(1,1) 
+>             if(iallo.eq.0) IFSW3=IFSW3+1
+>           elseif(name.eq.'SOIL W 4 ')then
+>             if(iallo.eq.0) allocate(sw4(mix,mjx))
+>             read(ifile,iostat=ierr) sw4
+>             sample=sw4(1,1) 
+>             if(iallo.eq.0) IFSW4=IFSW4+1
+566a629,633
+>           elseif(name.eq.'SNOWH    ')then
+>             if(iallo.eq.0) allocate(snh(mix,mjx))
+>             read(ifile,iostat=ierr) snd
+>             sample=snd(1,1) 
+>             if(iallo.eq.0) IFSNH=IFSNH+1
+571a639,643
+>           elseif(name.eq.'WEASD    ')then
+>             if(iallo.eq.0) allocate(wsd(mix,mjx))
+>             read(ifile,iostat=ierr) wsd
+>             sample=wsd(1,1) 
+>             if(iallo.eq.0) IFWSD=IFWSD+1
+606a679,693
+>           elseif(name.eq.'ALB      ')then
+>             if(iallo.eq.0) allocate(alb(mix,mjx))
+>             read(ifile,iostat=ierr) alb
+>             sample=alb(1,1) 
+>             if(iallo.eq.0) IFALB=IFALB+1
+>           elseif(name.eq.'ALBEDO   ')then
+>             if(iallo.eq.0) allocate(abb(mix,mjx))
+>             read(ifile,iostat=ierr) abb
+>             sample=abb(1,1) 
+>             if(iallo.eq.0) IFABB=IFABB+1
+>           elseif(name.eq.'ALBSNOMX ')then
+>             if(iallo.eq.0) allocate(asb(mix,mjx))
+>             read(ifile,iostat=ierr) asb
+>             sample=asb(1,1) 
+>             if(iallo.eq.0) IFASB=IFASB+1
+706c793,796
+<         if(iallo.eq.0) allocate(z(mix,mjx,mkx))
+---
+>         if(p00.gt.0. .and. ts0.gt.0. .and. tlp.gt.0. .and. index.ne.8 &
+>                      .and. ifz .eq. 1 )then
+> 
+>           if(iallo.eq.0) allocate(z(mix,mjx,mkx))
+708d797
+<         if(p00.gt.0. .and. ts0.gt.0. .and. tlp.gt.0.)then
+722,728c811
+<           do k=1,kl
+<           do j=1,jlx
+<           do i=1,ilx
+<             z(i,j,k)=0.
+<           enddo
+<           enddo
+<           enddo
+---
+>           ifz = 0
+931a1015
+> 
+985a1070
+> 
+1020a1106
+>       IFVGF = max(IFVGF-1,0)
+1025a1112
+>       IFGHF = max(IFGHF-1,0)
+1031a1119
+>       IFMAV = max(IFMAV-1,0)
+1035a1124,1125
+>       IFST5 = max(IFST5-1,0)
+>       IFST6 = max(IFST6-1,0)
+1039a1130,1133
+>       IFSW1 = max(IFSW1-1,0)
+>       IFSW2 = max(IFSW2-1,0)
+>       IFSW3 = max(IFSW3-1,0)
+>       IFSW4 = max(IFSW4-1,0)
+1040a1135
+>       IFSNH = max(IFSNH-1,0)
+1041a1137
+>       IFWSD = max(IFWSD-1,0)
+1048a1145,1147
+>       IFALB = max(IFALB-1,0)
+>       IFABB = max(IFABB-1,0)
+>       IFASB = max(IFASB-1,0)
+1146c1245,1246
+<           CALL PVP(U,V,T,DMF,XMF,COR,pvals,dx,                      &
+---
+>           if ( index .eq. 8 ) then
+>              CALL PVP(U,V,T,DMF,XMF,COR,pvals/100.,dx,              &
+1148a1249,1253
+>           else
+>              CALL PVP(U,V,T,DMF,XMF,COR,pvals,dx,                   &
+>                  mix,mjx,mkx,PV,                                    &
+>                  dum2d,dum2da,dum2db,dum2dc,dum2dd,dum2de,dum3d)
+>           endif
+1168c1273
+<       if(IFW.eq.1)then
+---
+>       if(IFW.eq.1 .and. index.ne.8)then
+1379a1485
+>   IF(IFVGF.EQ.1) call writeout(vgf,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,irec)
+1384a1491
+>   IF(IFGHF.EQ.1) call writeout(ghf,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,irec)
+1390a1498
+>   IF(IFMAV.EQ.1) call writeout(mav,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,irec)
+1394a1503,1504
+>   IF(IFST5.EQ.1) call writeout(st5,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,irec)
+>   IF(IFST6.EQ.1) call writeout(st6,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,irec)
+1398a1509,1512
+>   IF(IFSW1.EQ.1) call writeout(sw1,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,irec)
+>   IF(IFSW2.EQ.1) call writeout(sw2,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,irec)
+>   IF(IFSW3.EQ.1) call writeout(sw3,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,irec)
+>   IF(IFSW4.EQ.1) call writeout(sw4,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,irec)
+1399a1514
+>   IF(IFSNH.EQ.1) call writeout(snh,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,irec)
+1400a1516
+>   IF(IFWSD.EQ.1) call writeout(wsd,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,irec)
+1407a1524,1526
+>   IF(IFALB.EQ.1) call writeout(alb,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,irec)
+>   IF(IFABB.EQ.1) call writeout(abb,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,irec)
+>   IF(IFASB.EQ.1) call writeout(asb,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,irec)
+1413,1415c1532,1536
+<   IF(IFCLFR.EQ.1) call writeout(clfrlo,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,irec)
+<   IF(IFCLFR.EQ.1) call writeout(clfrmi,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,irec)
+<   IF(IFCLFR.EQ.1) call writeout(clfrhi,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,irec)
+---
+>   IF(IFCLFR.EQ.1) THEN
+>         call writeout(clfrlo,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,irec)
+>         call writeout(clfrmi,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,irec)
+>         call writeout(clfrhi,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,irec)
+>   ENDIF
+1468,1473c1589,1595
+<              IFXLAT+IFXLON+IFLU+IFSC+IFPBLH+IFPBLR+IFSHF+IFLHF+        &
+<              IFUST+IFSWD+IFLWD+IFSST+IFPSLV+IFCREF+IFICLW+             &
+<              IFIRNW+IFPWAT+IFCLFR+IFCLFR+IFCLFR+IFST1+IFST2+           &
+<              IFST3+IFST4+IFSM1+IFSM2+IFSM3+IFSM4+IFSWO+IFLWO+          &
+<              IFCAN+IFSND+IFSSI+IFSRO+IFURO+IFT2M+IFQ2M+IFU10+          &
+<              IFV10
+---
+>              IFXLAT+IFXLON+IFLU+IFVGF+IFSC+IFPBLH+IFPBLR+              &
+>              IFSHF+IFLHF+IFGHF+IFUST+IFSWD+IFLWD+IFSST+IFPSLV+         &
+>              IFCREF+IFICLW+IFIRNW+IFPWAT+IFCLFR+IFCLFR+IFCLFR+         &
+>              IFMAV+IFST1+IFST2+IFST3+IFST4+IFST5+IFST6+                &
+>              IFSM1+IFSM2+IFSM3+IFSM4+IFSW1+IFSW2+IFSW3+IFSW4+          &
+>              IFSWO+IFLWO+IFCAN+IFSNH+IFSND+IFWSD+IFSSI+IFSRO+IFURO+    &
+>              IFT2M+IFQ2M+IFU10+IFV10+IFALB+IFABB+IFASB
+1760,1768c1882,1890
+<       IF(IFPS.EQ.1) WRITE(81,213)'ps      ','pstar (Pa)          '
+<       IF(IFTG.EQ.1) WRITE(81,213)'tg      ','ground temp (K)     '
+<       IF(IFRC.EQ.1) WRITE(81,213)'rc      ','accum conv pcn (cm) '
+<       IF(IFRN.EQ.1) WRITE(81,213)'rn      ','accum non-c pcn (cm)'
+<       IF(IFTER.EQ.1) WRITE(81,213)'ter     ','ter elevation (m)   '
+<       IF(IFXMF.EQ.1) WRITE(81,213)'xmf     ','cross map factor    '
+<       IF(IFDMF.EQ.1) WRITE(81,213)'dmf     ','dot map factor      '
+<       IF(IFCOR.EQ.1) WRITE(81,213)'cor     ','coriolis (s-1)      '
+<       IF(IFTR.EQ.1) WRITE(81,213)'tr      ','reservoir temp (K)  '
+---
+>       IF(IFPS.EQ.1)   WRITE(81,213)'ps      ','pstar (Pa)          '
+>       IF(IFTG.EQ.1)   WRITE(81,213)'tg      ','ground temp (K)     '
+>       IF(IFRC.EQ.1)   WRITE(81,213)'rc      ','accum conv pcn (cm) '
+>       IF(IFRN.EQ.1)   WRITE(81,213)'rn      ','accum non-c pcn (cm)'
+>       IF(IFTER.EQ.1)  WRITE(81,213)'ter     ','ter elevation (m)   '
+>       IF(IFXMF.EQ.1)  WRITE(81,213)'xmf     ','cross map factor    '
+>       IF(IFDMF.EQ.1)  WRITE(81,213)'dmf     ','dot map factor      '
+>       IF(IFCOR.EQ.1)  WRITE(81,213)'cor     ','coriolis (s-1)      '
+>       IF(IFTR.EQ.1)   WRITE(81,213)'tr      ','reservoir temp (K)  '
+1771,1772c1893,1895
+<       IF(IFLU.EQ.1) WRITE(81,213)'lu      ','land use            '
+<       IF(IFSC.EQ.1) WRITE(81,213)'sc      ','snow cover          '
+---
+>       IF(IFLU.EQ.1)   WRITE(81,213)'lu      ','land use            '
+>       IF(IFVGF.EQ.1)  WRITE(81,213)'vgf     ','vegetation coverage '
+>       IF(IFSC.EQ.1)   WRITE(81,213)'sc      ','snow cover          '
+1775,1799c1898,1935
+<       IF(IFSHF.EQ.1) WRITE(81,213)'shf     ','sen heat flux (W/m2)'
+<       IF(IFLHF.EQ.1) WRITE(81,213)'lhf     ','lat heat flux (W/m2)'
+<       IF(IFUST.EQ.1) WRITE(81,213)'ust     ','friction vel (m/s)  '
+<       IF(IFSWD.EQ.1) WRITE(81,213)'swd     ','down sw rad (W/m2)  '
+<       IF(IFLWD.EQ.1) WRITE(81,213)'lwd     ','down lw rad (W/m2)  '
+<       IF(IFSWO.EQ.1) WRITE(81,213)'swo     ','out sw rad (W/m2)  '
+<       IF(IFLWO.EQ.1) WRITE(81,213)'lwo     ','out lw rad (W/m2)  '
+<       IF(IFSST.EQ.1) WRITE(81,213)'sst     ','sea sfc temp        '
+<       IF(IFST1.EQ.1) WRITE(81,213)'st1     ','soil temp 1 (K)     '
+<       IF(IFST2.EQ.1) WRITE(81,213)'st2     ','soil temp 2 (K)     '
+<       IF(IFST3.EQ.1) WRITE(81,213)'st3     ','soil temp 3 (K)     '
+<       IF(IFST4.EQ.1) WRITE(81,213)'st4     ','soil temp 4 (K)     '
+<       IF(IFSM1.EQ.1) WRITE(81,213)'sm1     ','soil moisture 1 (m3/m3) '
+<       IF(IFSM2.EQ.1) WRITE(81,213)'sm2     ','soil moisture 2 (m3/m3) '
+<       IF(IFSM3.EQ.1) WRITE(81,213)'sm3     ','soil moisture 3 (m3/m3) '
+<       IF(IFSM4.EQ.1) WRITE(81,213)'sm4     ','soil moisture 4 (m3/m3) '
+<       IF(IFCAN.EQ.1) WRITE(81,213)'can     ','canopy moisture (m)     '
+<       IF(IFSND.EQ.1) WRITE(81,213)'snd     ','snow depth (mm)         '
+<       IF(IFSSI.EQ.1) WRITE(81,213)'ssi     ','seaice                  '
+<       IF(IFSRO.EQ.1) WRITE(81,213)'sro     ','surface runoff (mm)     '
+<       IF(IFURO.EQ.1) WRITE(81,213)'uro     ','underground runoff (mm) '
+<       IF(IFT2M.EQ.1) WRITE(81,213)'t2m     ','2 m temperature (K)     '
+<       IF(IFQ2M.EQ.1) WRITE(81,213)'q2m     ','2 m mixing ratio (kg/kg)'
+<       IF(IFU10.EQ.1) WRITE(81,213)'u10     ','10 m u wind (m/sec)     '
+<       IF(IFV10.EQ.1) WRITE(81,213)'v10     ','10 m v wind (m/sec)     '
+---
+>       IF(IFSHF.EQ.1)  WRITE(81,213)'shf     ','sen heat flux (W/m2)'
+>       IF(IFLHF.EQ.1)  WRITE(81,213)'lhf     ','lat heat flux (W/m2)'
+>       IF(IFGHF.EQ.1)  WRITE(81,213)'ghf     ','grd heat flux (W/m2)'
+>       IF(IFUST.EQ.1)  WRITE(81,213)'ust     ','friction vel (m/s)  '
+>       IF(IFSWD.EQ.1)  WRITE(81,213)'swd     ','down sw rad (W/m2)  '
+>       IF(IFLWD.EQ.1)  WRITE(81,213)'lwd     ','down lw rad (W/m2)  '
+>       IF(IFSWO.EQ.1)  WRITE(81,213)'swo     ','out sw rad (W/m2)   '
+>       IF(IFLWO.EQ.1)  WRITE(81,213)'lwo     ','out lw rad (W/m2)   '
+>       IF(IFSST.EQ.1)  WRITE(81,213)'sst     ','sea sfc temp        '
+>       IF(IFMAV.EQ.1)  WRITE(81,213)'mav     ','sfc moisture avail  '
+>       IF(IFST1.EQ.1)  WRITE(81,213)'st1     ','soil temp 1 (K)     '
+>       IF(IFST2.EQ.1)  WRITE(81,213)'st2     ','soil temp 2 (K)     '
+>       IF(IFST3.EQ.1)  WRITE(81,213)'st3     ','soil temp 3 (K)     '
+>       IF(IFST4.EQ.1)  WRITE(81,213)'st4     ','soil temp 4 (K)     '
+>       IF(IFST5.EQ.1)  WRITE(81,213)'st5     ','soil temp 5 (K)     '
+>       IF(IFST6.EQ.1)  WRITE(81,213)'st6     ','soil temp 6 (K)     '
+>       IF(IFSM1.EQ.1)  WRITE(81,213)'sm1     ','soil moist1 (m3/m3) '
+>       IF(IFSM2.EQ.1)  WRITE(81,213)'sm2     ','soil moist2 (m3/m3) '
+>       IF(IFSM3.EQ.1)  WRITE(81,213)'sm3     ','soil moist3 (m3/m3) '
+>       IF(IFSM4.EQ.1)  WRITE(81,213)'sm4     ','soil moist4 (m3/m3) '
+>       IF(IFSW1.EQ.1)  WRITE(81,213)'sw1     ','soil water 1 (m3/m3)'
+>       IF(IFSW2.EQ.1)  WRITE(81,213)'sw2     ','soil water 2 (m3/m3)'
+>       IF(IFSW3.EQ.1)  WRITE(81,213)'sw3     ','soil water 3 (m3/m3)'
+>       IF(IFSW4.EQ.1)  WRITE(81,213)'sw4     ','soil water 4 (m3/m3)'
+>       IF(IFCAN.EQ.1)  WRITE(81,213)'can     ','canopy moisture (m) '
+>       IF(IFSNH.EQ.1)  WRITE(81,213)'snh     ','phys snow height (m)'
+>       IF(IFSND.EQ.1)  WRITE(81,213)'snd     ','snow depth - SNODPTH'
+>       IF(IFWSD.EQ.1)  WRITE(81,213)'wsd     ','snow depth - WEASD  '
+>       IF(IFSSI.EQ.1)  WRITE(81,213)'ssi     ','seaice              '
+>       IF(IFSRO.EQ.1)  WRITE(81,213)'sro     ','surface runoff (mm) '
+>       IF(IFURO.EQ.1)  WRITE(81,213)'uro     ','undergrd runoff (mm)'
+>       IF(IFT2M.EQ.1)  WRITE(81,213)'t2m     ','2 m temperature (K) '
+>       IF(IFQ2M.EQ.1)  WRITE(81,213)'q2m     ','2m mix ratio (kg/kg)'
+>       IF(IFU10.EQ.1)  WRITE(81,213)'u10     ','10 m u wind (m/sec) '
+>       IF(IFV10.EQ.1)  WRITE(81,213)'v10     ','10 m v wind (m/sec) '
+>       IF(IFALB.EQ.1)  WRITE(81,213)'alb     ','albedo (fraction)   '
+>       IF(IFABB.EQ.1)  WRITE(81,213)'abb     ','backgrd albedo (%)  '
+>       IF(IFASB.EQ.1)  WRITE(81,213)'asb     ','max snow albedo (%) '
+1806,1808c1942,1947
+<       IF(IFCLFR.EQ.1) WRITE(81,213)'clfrlo  ','low cloud fraction  '
+<       IF(IFCLFR.EQ.1) WRITE(81,213)'clfrmi  ','mid cloud fraction  '
+<       IF(IFCLFR.EQ.1) WRITE(81,213)'clfrhi  ','high cloud fraction '
+---
+>       IF(IFCLFR.EQ.1) THEN
+>           WRITE(81,213)'clfrlo  ','low cloud fraction  '
+>           WRITE(81,213)'clfrmi  ','mid cloud fraction  '
+>           WRITE(81,213)'clfrhi  ','high cloud fraction '
+>       ENDIF
+> 
+1811,1818c1950,1957
+<       IF(IFU.EQ.1) WRITE(81,214)'u       ',KTOT,'u wind (m/s)        '
+<       IF(IFV.EQ.1) WRITE(81,214)'v       ',KTOT,'v wind (m/s)        '
+<       IF(IFW.EQ.1) WRITE(81,214)'w       ',KTOT,'vertical vel (m/s)  '
+<       IF(IFPP.EQ.1) WRITE(81,214)'pp      ',KTOT,'prs pert (Pa)       '
+<       IF(IFT.EQ.1) WRITE(81,214)'t       ',KTOT,'temperature (C)     '
+<       IF(IFQ.EQ.1) WRITE(81,214)'q       ',KTOT,'mixing ratio (kg/kg)'
+<       IF(IFCLW.EQ.1) WRITE(81,214)'clw     ',KTOT,'cloud water (kg/kg) '
+<       IF(IFRNW.EQ.1) WRITE(81,214)'rnw     ',KTOT,'rain water (kg/kg)  '
+---
+>       IF(IFU.EQ.1)    WRITE(81,214)'u       ',KTOT,'u wind (m/s)        '
+>       IF(IFV.EQ.1)    WRITE(81,214)'v       ',KTOT,'v wind (m/s)        '
+>       IF(IFW.EQ.1)    WRITE(81,214)'w       ',KTOT,'vertical vel (m/s)  '
+>       IF(IFPP.EQ.1)   WRITE(81,214)'pp      ',KTOT,'prs pert (Pa)       '
+>       IF(IFT.EQ.1)    WRITE(81,214)'t       ',KTOT,'temperature (C)     '
+>       IF(IFQ.EQ.1)    WRITE(81,214)'q       ',KTOT,'mixing ratio (kg/kg)'
+>       IF(IFCLW.EQ.1)  WRITE(81,214)'clw     ',KTOT,'cloud water (kg/kg) '
+>       IF(IFRNW.EQ.1)  WRITE(81,214)'rnw     ',KTOT,'rain water (kg/kg)  '
+1820,1823c1959,1962
+<       IF(IFZ.EQ.1) WRITE(81,214)'z       ',KTOT,'height AGL (m)      '
+<       IF(IFH.EQ.1) WRITE(81,214)'h       ',KTOT,'geopot height (m)   '
+<       IF(IFTKE.EQ.1) WRITE(81,214)'tke     ',KTOT,'turb kin ener (J/kg)'
+<       IF(IFICE.EQ.1) WRITE(81,214)'ice     ',KTOT,'ice water (kg/kg)   '
+---
+>       IF(IFZ.EQ.1)    WRITE(81,214)'z       ',KTOT,'height AGL (m)      '
+>       IF(IFH.EQ.1)    WRITE(81,214)'h       ',KTOT,'geopot height (m)   '
+>       IF(IFTKE.EQ.1)  WRITE(81,214)'tke     ',KTOT,'turb kin ener (J/kg)'
+>       IF(IFICE.EQ.1)  WRITE(81,214)'ice     ',KTOT,'ice water (kg/kg)   '
+1825,1836c1964,1975
+<       IF(IFGRAUP.EQ.1) WRITE(81,214)'graupel ',KTOT,'graupel (kg/kg)     '
+<       IF(IFNCI.EQ.1) WRITE(81,214)'nci     ',KTOT,'num conc ice (m-3)  '
+<       IF(IFTD.EQ.1) WRITE(81,214)'td      ',KTOT,'dewpoint temp (C)   '
+<       IF(IFRH.EQ.1) WRITE(81,214)'rh      ',KTOT,'rel humidity (%)    '
+<       IF(IFTH.EQ.1) WRITE(81,214)'th      ',KTOT,'potential temp (K)  '
+<       IF(IFTHE.EQ.1) WRITE(81,214)'the     ',KTOT,'theta-e (K)         '
+<       IF(IFPRS.EQ.1) WRITE(81,214)'prs     ',KTOT,'pressure (Pa)       '
+<       IF(IFVOR.EQ.1) WRITE(81,214)'vor     ',KTOT,'vorticity (s-1)     '
+<       IF(IFPV.EQ.1) WRITE(81,214)'pv      ',KTOT,'potential vort (pvu)'
+<       IF(IFDBZ.EQ.1) WRITE(81,214)'dbz     ',KTOT,'reflectivity (dbz)  '
+<       IF(IFDIV.EQ.1) WRITE(81,214)'div     ',KTOT,'divergence (s-1)    '
+<       IF(IFDIR.EQ.1) WRITE(81,214)'dir     ',KTOT,'dir (degrees)       '
+---
+>       IF(IFGRAUP.EQ.1) WRITE(81,214)'graupel ',KTOT,'graupel (kg/kg)    '
+>       IF(IFNCI.EQ.1)  WRITE(81,214)'nci     ',KTOT,'num conc ice (m-3)  '
+>       IF(IFTD.EQ.1)   WRITE(81,214)'td      ',KTOT,'dewpoint temp (C)   '
+>       IF(IFRH.EQ.1)   WRITE(81,214)'rh      ',KTOT,'rel humidity (%)    '
+>       IF(IFTH.EQ.1)   WRITE(81,214)'th      ',KTOT,'potential temp (K)  '
+>       IF(IFTHE.EQ.1)  WRITE(81,214)'the     ',KTOT,'theta-e (K)         '
+>       IF(IFPRS.EQ.1)  WRITE(81,214)'prs     ',KTOT,'pressure (Pa)       '
+>       IF(IFVOR.EQ.1)  WRITE(81,214)'vor     ',KTOT,'vorticity (s-1)     '
+>       IF(IFPV.EQ.1)   WRITE(81,214)'pv      ',KTOT,'potential vort (pvu)'
+>       IF(IFDBZ.EQ.1)  WRITE(81,214)'dbz     ',KTOT,'reflectivity (dbz)  '
+>       IF(IFDIV.EQ.1)  WRITE(81,214)'div     ',KTOT,'divergence (s-1)    '
+>       IF(IFDIR.EQ.1)  WRITE(81,214)'dir     ',KTOT,'dir (degrees)       '

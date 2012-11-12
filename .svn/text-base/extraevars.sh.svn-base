@@ -1,0 +1,157 @@
+#!/bin/sh
+
+set -ex
+
+years="2005"
+weeks=$(seq 1 53)
+
+dirwork=$(pwd)
+dirin=$dirwork/../SALIDAS-MM5
+dirout=$dirwork/../SALIDAS-EXTRA2
+
+namein=MMOUT_DOMAIN
+
+conf="C434421"
+dom="2"
+data="ERA40"
+res="10km"
+area="TUNEZ"
+
+nameout=MMEXT_${area}_D${dom}_${res}_${data}_${conf}
+
+cp namelist.input.viento namelist.input
+
+
+####################################################################
+
+function variable {
+  case $1 in
+    300) echo U;;
+    301) echo V;;
+    302) echo W;;
+    303) echo PP;;
+    304) echo T;;
+    305) echo Q;;
+    306) echo CLW;;
+    307) echo RNW;;
+    308) echo RTND;;
+    309) echo Z;;
+    310) echo TKE;;
+    311) echo ICE;;
+    312) echo SNOW;;
+    313) echo GRAUP;;
+    314) echo NCI;;
+    315) echo TD;;
+    316) echo RH;;
+    317) echo TH;;
+    318) echo THE;;
+    319) echo PRS;;
+    320) echo VOR;;
+    321) echo PV;;
+    322) echo DIV;;
+    323) echo DIR;;
+    324) echo TADV;;
+    325) echo DBZ;;
+    326) echo H;;
+    327) echo RHO;;
+    328) echo MV;;
+
+    200) echo PS;;
+    201) echo TG;;
+    202) echo RC;;
+    203) echo RN;;
+    204) echo TER;;
+    205) echo XMF;;
+    206) echo DMF;;
+    207) echo COR;;
+    208) echo TR;;
+    209) echo XLAT;;
+    210) echo XLON;;
+    211) echo LU;;
+    212) echo VGF;;
+    213) echo SC;;
+    214) echo PBLH;;
+    215) echo PBLR;;
+    216) echo SHF;;
+    217) echo LHF;;
+    218) echo GHF;;
+    219) echo UST;;
+    220) echo SWD;;
+    221) echo LWD;;
+    222) echo SWO;;
+    223) echo LWO;;
+    224) echo SST;;
+    225) echo MAV;;
+    226) echo ST1;;
+    227) echo ST2;;
+    228) echo ST3;;
+    229) echo ST4;;
+    229) echo ST5;;
+    230) echo ST6;;
+    231) echo SM1;;
+    232) echo SM2;;
+    233) echo SM3;;
+    234) echo SM4;;
+    235) echo SW1;;
+    236) echo SW2;;
+    237) echo SW3;;
+    238) echo SW4;;
+    239) echo CAN;;
+    240) echo SNH;;
+    241) echo SND;;
+    242) echo WSD;;
+    243) echo SSI;;
+    245) echo SIF;;
+    246) echo SRO;;
+    247) echo URO;;
+    248) echo T2M;;
+    249) echo Q2M;;
+    250) echo U10;;
+    251) echo V10;;
+    252) echo ALB;;
+    253) echo ABB;;
+    254) echo ASB;;
+    255) echo PSLV;;
+    256) echo CREF;;
+    257) echo ICLW;;
+    258) echo IRNW;;
+    259) echo PWAT;;
+    260) echo CLFR;;
+    261) echo CLFR;;
+    262) echo CLFR;;
+    263) echo LANDMASK;;
+    264) echo MV10;;
+    265) echo DIR10;;
+    266) echo XLATD;;
+    267) echo XLOND;;
+  esac
+}
+
+cd $dirwork
+
+
+for year in $years;do 
+  for week in $weeks; do
+    week=$(printf %02d $week)
+    if [ -h MMOUT ]; then
+      rm -f MMOUT
+    fi
+    ln -s $dirin/${namein}${dom}_${week}_${year} MMOUT
+
+    export F_UFMTENDIAN=little:90
+    ./mm5_to_ext.csh > /dev/null
+    cdo splitcode fort.90 kk
+    rm fort.90 test.dat
+    
+    for file2 in $(ls kk*ext);do
+      code=$(echo $file2 | cut -c 3-5)  
+      var=$(variable $code)
+      mkdir -p $dirout/$var
+      mv $file2 $dirout/$var/${nameout}_${var}_${week}.${year}
+    done
+  done
+done
+  
+rm -f MMOUT
+
+rm *.ctl

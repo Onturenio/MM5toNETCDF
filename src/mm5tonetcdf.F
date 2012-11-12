@@ -1,0 +1,2750 @@
+      program mm5tonetcdf
+      use netcdf
+      implicit none
+
+
+!!!!!!!!!!!!!!!!!  netCDF API variables  !!!!!!!!!!!!!
+      character (len = *), parameter :: FILE_NAME = "output.nc"
+      integer :: ncid
+ 
+      integer :: x_dimid, y_dimid, z_dimid,t_dimid,lv_dimid, height_dimid, &
+      heightv_dimid, nrec
+      integer :: iy,imon,id,ih, imin
+      integer :: xhours, nblend
+      integer :: count4(4)
+      integer :: t2m_varid, q_varid,hus_varid,ta_varid, xlat_varid, xlon_varid,time_varid,sst_varid,vas_varid,uas_varid,psl_varid, seaice_varid
+      integer :: lv_varid,proyec_varid, mv10_varid,prc_varid,prls_varid,pre_varid,tg_varid,mrros_varid,zg_varid,ps_varid,lm_varid,lon_varid,lat_varid,lu_varid,ter_varid
+      integer :: rh_varid, height_varid, heightv_varid,ua_varid,va_varid,rlds_varid,rsds_varid,hfss_varid,hfls_varid,mrsos1_varid, mrsos2_varid, mrsos3_varid, mrsos4_varid 
+      integer :: hfso_varid,clt_varid,q2m_varid,huss_varid,st1_varid,pblh_varid,swo_varid,lwo_varid,&
+      td_varid, st2_varid, st3_varid, st4_varid, z_varid, prs_varid, sc_varid, wsd_varid, wa_varid, uro_varid
+      real, dimension(:,:), allocatable:: dummy2d
+      real, dimension(:,:,:), allocatable:: dummy3d,dummy
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+      integer :: mix,mjx,mkx,mrecl
+
+      integer :: ifile,ofile
+      character*12 fecha
+      integer ifecha,code
+      parameter(ifile=10,ofile=80)   ! Unit numbers for input file and
+                                     ! output file.
+
+!  3d arrays
+      real, dimension(:,:,:), allocatable :: u,v,t,qv,qc,qr,qi,qs,qg,    &
+                                nci,pp,rtnd,tke,h,w,rho,                     &
+                                theta,thetae,dir,mv,td,rh,prs,              &
+                                dbz,div,vor,pv,tadv,z,dum3d
+      integer, dimension(:,:,:), allocatable :: pk
+
+!  2d arrays
+      real, dimension(:,:), allocatable :: tg,mrros,mrros_old,prc,prls,prc_old,prls_old,pre,ter,xmf,dmf,       &
+                                  sc,ps,cor,tr,                       &
+                                  xlat,xlon,xlatd,xlond,lm,lu,vgf,pblh,pblr,          &
+                                  shf,lhf,ghf,ust,swd,lwd,sst,mav,     &
+                                  st1,st2,st3,st4,st5,st6,             &
+                                  sm1,sm2,sm3,sm4,sw1,sw2,sw3,sw4,     &
+                                  swo,lwo,can,snh,snd,wsd,ssi,uro,uro_old, &
+                                  t2m,q2m,uas,vas,alb,abb,asb,sif,     &
+                                  psfc,cref,pslv,iclw,irnw,pwat,       &
+                                  clfrlo,clfrmi,clfrhi,mv10,dir10,dum2d,          &
+                                  dum2da,dum2db,dum2dc,dum2dd,dum2de
+
+!  1d arrays
+      real, dimension(:), allocatable :: sigma,pvals,dum1d
+
+!  scratch arrays
+      real, dimension(:,:), allocatable :: dumsfc
+      real, dimension(100)    :: plev
+
+!  header arrays and global variables
+      integer, dimension(50,20) :: bhi
+      real, dimension(20,20) :: bhr
+      character(len=80), dimension(50,20) :: bhic
+      character(len=80), dimension(20,20) :: bhrc
+      integer flag,index,ndim
+      integer, dimension(4) :: start_index,end_index
+      real xtime
+      character(len=4)  :: staggering,ordering
+      character(len=24) :: current_date
+      character(len=9)  :: name
+      character(len=25) :: units
+      character(len=46) :: description
+      character(len=38) :: tdef 
+      LOGICAL NEST
+      integer stmon
+      integer nplevs
+
+!  some global constants
+
+      real r,g,cp
+      parameter(R=287.04, G=9.81, CP=1004.0)
+
+!  misc.
+
+      integer i,j,k,n,ierr,iallo
+      integer timin,timax,nskip,iflinux,ifmap,ifsfc,ifskew,iskw,jskw,    &
+              ztype
+      integer ifu,ifv,ifw,ifpp,ift,ifq,ifclw,ifrnw,ifrtnd,ifz,iftke,     &
+              ifice,ifsnow,ifgraup,ifnci,iftd,ifrh,ifth,ifthe,ifprs,     &
+              ifvor,ifpv,ifdiv,ifdir,ifmv,iftadv,ifdbz,ifh,ifrho
+      integer ifps,iftg,ifrc,ifrn,ifpre,ifter,ifxmf,ifdmf,ifcor,iftr,          &
+              ifxlat,ifxlon,ifxlond,ifxlatd,iflm,iflu,ifvgf,ifsc,ifpblh,ifpblr,ifshf,iflhf,   &
+              ifghf,ifust,ifswd,iflwd,ifsst,ifpslv,ifcref,               &
+              ifmv10,ifdir10,ificlw,ifirnw,ifpwat,ifclfr,ifmav,                         &
+              ifst1,ifst2,ifst3,ifst4,ifst5,ifst6,                       &
+              ifsm1,ifsm2,ifsm3,ifsm4,ifsw1,ifsw2,ifsw3,ifsw4,           &
+              ifswo,iflwo,ifcan,ifsnh,ifsnd,ifwsd,ifssi,ifsro,ifuro,     &
+              ift2m,ifq2m,ifuas,ifvas,ifalb,ifabb,ifasb,ifsif,ifseaice
+      character(len=100) :: ihistory,iconvenc,ititle,isource,iinstitution,iproject_id,iexp_id,iforce_id,icontact_id
+!Cb
+      NAMELIST /RECORD1/  timin,timax,nskip,iflinux,ifmap,ifsfc,            &
+                          ifskew,iskw,jskw,ztype,plev
+      NAMELIST /RECORD10/ ifu,ifv,ifw,ifpp,ift,ifq,ifclw,ifrnw,ifrtnd,      &
+                          ifz,iftke,ifice,ifsnow,ifgraup,ifnci
+      NAMELIST /RECORD11/ iftd,ifrh,ifth,ifthe,ifprs,ifvor,ifpv,ifdiv,      &
+                          ifdir,iftadv,ifdbz,ifh,ifrho,ifmv
+      NAMELIST /RECORD12/ ifps,iftg,ifrc,ifrn,ifpre,ifter,ifxmf,ifdmf,ifcor,      &
+                          iftr,ifxlat,ifxlon,ifxlatd,ifxlond,iflm,iflu,ifvgf,ifsc,ifpblh,ifpblr, &
+                          ifshf,iflhf,ifghf,ifust,ifswd,iflwd,ifswo,iflwo,  &
+                          ifsst,ifmav,ifst1,ifst2,ifst3,ifst4,ifst5,ifst6,  &
+                          ifsm1,ifsm2,ifsm3,ifsm4,ifsw1,ifsw2,ifsw3,ifsw4,  &
+                          ifcan,ifsnh,ifsnd,ifwsd,ifssi,ifsif,ifsro,ifuro,  &
+                          ift2m,ifq2m,ifuas,ifvas,ifalb,ifabb,ifasb,ifseaice
+      NAMELIST /RECORD13/ ifpslv,ifcref,ificlw,ifirnw,ifpwat,ifclfr,ifmv10,ifdir10
+      NAMELIST /RECORD14/ ihistory,iconvenc,ititle,isource,iinstitution,iproject_id,iexp_id,iforce_id,icontact_id
+
+      integer unit_nml
+      logical is_it_there
+!CB
+      integer il,jl,kl,ilx,jlx,klp1
+      integer nout,nread,nwrite,irec
+      integer iblt,iice,nestlev,ndt,maptype,nout2d,nout3d
+      integer ix1,ix2,jx1,jx2,ka,kb,kc,ktot,nx,ny,navg,kfoo
+      integer ipole,ilon,shem
+
+      integer stat_u,stat_v,stat_w,stat_pp,stat_t,stat_qv,stat_qc,       &
+              stat_qr,stat_rtnd,stat_tke,stat_qi,stat_qs,stat_qg,        &
+              stat_nci,stat_h,stat_rh,stat_pslv,stat_rho,stat_mv10,stat_dir10
+
+      real xlatc,xlonc,xn,ptop,dx,dx2inv,p00,ts0,tlp,ps0,phydro,sample,  &
+           alatmax,alatmin,alonmax,alonmin,rlatinc,rloninc,              &
+           centeri,centerj,clat,clon,bottomi,fleftj,aincavg
+
+      character(len=3) :: cmon
+
+      integer im,jm,itmp,iscan,jscan,nscan,iproj
+      real rlat1,rlon1,orient,dy,hi,hj,dxs,dys,de,rerth,xp,yp,rpd,dr,pi
+      real hfoo,lonref,dxnps
+
+
+
+
+!  user-settable switches
+
+!Cb  set all pressure levels to 0 before reading them in, to 
+!    prevent NaN's in undefined pressure levels
+     plev = 0.0
+!CB
+
+!Cb
+      unit_nml = 9
+      is_it_there = .FALSE.
+
+	INQUIRE ( FILE = 'namelist.input' , EXIST = is_it_there )
+
+      IF ( is_it_there ) THEN
+
+         !  The file exists, get a unit number.
+
+         OPEN ( FILE   = 'namelist.input' ,      &
+                UNIT   =  unit_nml        ,      &
+                STATUS = 'OLD'            ,      &
+                FORM   = 'FORMATTED'      ,      &
+                ACTION = 'READ'           ,      &
+                ACCESS = 'SEQUENTIAL'     )
+  
+         !  File is opened, so read it.
+  
+         READ (unit_nml , NML = RECORD1 )
+          WRITE (6    , NML = RECORD1 )
+         READ (unit_nml , NML = RECORD10 )
+          WRITE (6    , NML = RECORD10 )
+         READ (unit_nml , NML = RECORD11 )
+          WRITE (6    , NML = RECORD11 )
+         READ (unit_nml , NML = RECORD12 )
+          WRITE (6    , NML = RECORD12 )
+         READ (unit_nml , NML = RECORD13 )
+          WRITE (6    , NML = RECORD13 )
+         READ (unit_nml , NML = RECORD14 )
+          WRITE (6    , NML = RECORD14 )
+      ENDIF
+!CB
+
+!cccccccccccccccccccc  Let's Get Ready To Rumble!  cccccccccccccccccccc
+
+
+      if(timax.eq.-99)then
+        timax=99999999
+      endif
+
+      iallo=0
+
+      stat_u=0
+      stat_v=0
+      stat_w=0
+      stat_pp=0
+      stat_t=0
+      stat_qv=0
+      stat_qc=0
+      stat_qr=0
+      stat_rtnd=0
+      stat_tke=0
+      stat_qi=0
+      stat_qs=0
+      stat_qg=0
+      stat_nci=0
+      stat_h=0
+      stat_rh=0
+      stat_pslv=0
+      stat_rho=0
+      stat_mv10=0
+      stat_dir10=0
+
+      nread=0
+      nwrite=0
+      irec=1
+
+      NOUT2D=IFPS+IFTG+IFRC+IFPRE+IFRN+IFTER+IFXMF+IFDMF+IFCOR+IFTR+         &
+             IFXLAT+IFXLON+IFLU+IFVGF+IFSC+IFPBLH+IFPBLR+              &
+             IFSHF+IFLHF+IFGHF+IFUST+IFSWD+IFLWD+IFSST+IFPSLV+         &
+             IFCREF+IFICLW+IFIRNW+IFPWAT+IFMV10+IFDIR10+IFCLFR+IFCLFR+IFCLFR+         &
+             IFMAV+IFST1+IFST2+IFST3+IFST4+IFST5+IFST6+                &
+             IFSM1+IFSM2+IFSM3+IFSM4+IFSW1+IFSW2+IFSW3+IFSW4+          &
+             IFSWO+IFLWO+IFCAN+IFSNH+IFSND+IFWSD+IFSSI+IFSRO+IFURO+    &
+             IFT2M+IFQ2M+IFUAS+IFVAS+IFALB+IFABB+IFASB+IFSIF+IFLM+IFXLATD+IFXLOND+IFSEAICE
+      NOUT3D=IFU+IFV+IFW+IFPP+IFT+IFQ+IFCLW+IFRNW+IFRTND+IFZ+IFH+      &
+             IFTKE+IFICE+IFSNOW+IFGRAUP+IFNCI+IFTD+IFRH+IFTH+IFTHE+    &
+             IFPRS+IFVOR+IFPV+IFDBZ+IFDIV+IFDIR+IFMV+IFTADV+IFRHO
+      print *
+      print *,'You are requesting ',NOUT2D,' 2d variables and',        &
+              NOUT3D,' 3d variables'
+
+      if(ztype.eq.2)then
+        print *
+        print *,'data will be interpolated to pressure levels'
+        nplevs=0
+        do n=1,100
+          if(plev(n).gt.1.0) nplevs=nplevs+1
+        enddo
+        print *,'  nplevs=',nplevs
+      endif
+
+!!!!!!!!!!!!!!!!!!!!! Opening netCDF !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      call check( nf90_create(FILE_NAME, NF90_CLOBBER, ncid) )
+
+!      call check( nf90_put_att(ncid, NF90_GLOBAL, "history", "Paleo simulation for Europe and Iberian Peninsula") )
+!      call check( nf90_put_att(ncid, NF90_GLOBAL, "Conventions", "CF-1.4") )
+!      call check( nf90_put_att(ncid, NF90_GLOBAL, "title", "SPECMORE UM-MM5 MM5-ERIK2") )
+!      call check( nf90_put_att(ncid, NF90_GLOBAL, "source", "MM5-RCM at the University of Murcia (Spain)") )
+!      call check( nf90_put_att(ncid, NF90_GLOBAL, "institution", "UM, University of Murcia (Spain)") )
+!      call check( nf90_put_att(ncid, NF90_GLOBAL, "project_id", "SPECMORE") )
+!      call check( nf90_put_att(ncid, NF90_GLOBAL, "experiment_id", "UM_MM5_ERAIN") )
+!      call check( nf90_put_att(ncid, NF90_GLOBAL, "forcing_id", "ECHOG-ERIK2") )
+!      call check( nf90_put_att(ncid, NF90_GLOBAL, "contact", "Juan Jose Gomez Navarro (jjgomeznavarro@um.es)") )
+
+
+      call check( nf90_put_att(ncid, NF90_GLOBAL, "history", ihistory) )
+      call check( nf90_put_att(ncid, NF90_GLOBAL, "Conventions", iconvenc) )
+      call check( nf90_put_att(ncid, NF90_GLOBAL, "title", ititle) )
+      call check( nf90_put_att(ncid, NF90_GLOBAL, "source", isource) )
+      call check( nf90_put_att(ncid, NF90_GLOBAL, "institution", iinstitution) )
+      call check( nf90_put_att(ncid, NF90_GLOBAL, "project_id", iproject_id) )
+      call check( nf90_put_att(ncid, NF90_GLOBAL, "experiment_id", iexp_id) )
+      call check( nf90_put_att(ncid, NF90_GLOBAL, "forcing_id", iforce_id) )
+      call check( nf90_put_att(ncid, NF90_GLOBAL, "contact", icontact_id) )
+!
+!CCCCCCCCCCCCCC
+! Read and interpret header information
+nrec=0
+  read(ifile,iostat=ierr)flag
+
+  do while (ierr.eq.0)
+  nout=0
+  do while (nout.eq.0)
+    nread=nread+1
+    write(*,'("----- Reading output time = ",i5," -----")') nread
+    do while (ierr.eq.0 .and. flag.ne.2)
+      if(flag.eq.0)then
+        print *
+        print *,'Reading big header'
+        read(ifile,iostat=ierr) bhi,bhr,bhic,bhrc
+        index=bhi(1,1)
+        if( index <= 2 .and. bhi(8,1) == 1 .and. bhi(15,1) == 0) then
+          mix=bhi(9,1)
+          mjx=bhi(10,1)
+        else
+          mix=bhi(16,1)
+          mjx=bhi(17,1)
+        endif
+        if(index.eq.1)then
+          mkx=1
+        else
+          mkx=bhi(12,index)
+        endif
+        il=mix
+        jl=mjx
+        kl=mkx
+        ilx=mix-1
+        jlx=mjx-1
+!!!!!!!!!!!!!!!!!!!!!!!!!!ESTO HACE QUE COJA TODOS LOS PUNTOS DEL DOMINIO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        !ilx=mix
+        !jlx=mjx
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!        
+        klp1=mkx+1
+        IBLT=bhi(4,13)
+        XLATC=bhr(2,1)
+        XLONC=bhr(3,1)
+        xn=bhr(4,1)
+        nestlev=bhi(15,1)
+        ndt=nint(bhr(1,index)/60.)
+        if ( index == 11 ) ndt=nint(bhr(4,12))
+        ndt=ndt*NSKIP
+        ndt=max0(ndt,1)
+        ptop=bhr(2,2)
+        dx=bhr(9,1)
+        dx2inv=1.0/(2.0*dx)
+        P00=bhr(2,5)
+        TS0=bhr(3,5)
+        TLP=bhr(4,5) 
+        iice=bhi(18,index)
+        maptype=bhi(7,1)
+        if( ifmap.eq.0 )then
+          print *,'   Not using any map projection'
+        elseif(maptype.eq.1)then
+          print *,'   Using Lambert conformal map projection'
+        elseif(maptype.eq.2)then
+          print *,' Polar Stereographic map projection not supperted by this versions of mm5tonetcdf... IMPROVE ME!!!'
+          stop
+          if(ifmap.eq.1 .and. bhr(2,1).lt.0.)then
+            print *,'   Cannot do southern hemisphere polar ',           &
+                 'stereographic map projection (yet)'
+            print *,'   Not using any map projection'
+            ifmap=0
+          else
+            print *,'   Using Polar Stereographic map projection'
+            print *,'      note: GrADS interpolates to map for this ',   &
+                       'projection'
+          endif
+        elseif(maptype.eq.3)then
+          print *,' Mercator map'
+        endif 
+        NEST=.FALSE.
+        IF(nestlev.NE.0) NEST=.TRUE. 
+        IF(INDEX.EQ.11 .OR. INDEX.EQ.5)THEN
+          if(ztype.eq.1)then
+            KA=mkx
+            if(IFSFC.eq.1) then
+              KB=mkx
+              KTOT=1
+            else
+              KB=1
+              KTOT=mkx
+            endif
+            KC=-1
+          elseif(ztype.eq.2)then
+            ka=1
+            kb=nplevs
+            kc=1
+            ktot=nplevs
+          endif
+        ELSE
+          KA=1
+          KB=mkx
+          KC=1
+          ktot=mkx
+        ENDIF
+        print *,'Finished reading big header'
+        print *
+
+!!!!!!! Creating netCDF metadata and dimensions !!!!!!!!
+        selectcase(bhi(1,13))
+          case(0) 
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_radiation", "none") )
+          case(1)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_radiation","Surface ratiation") )
+          case(2)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_radiation","Cloud-radiation") )
+          case(3)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_radiation","CCM2") )
+          case(4)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_radiation","RRTM") )
+        end select 
+
+       selectcase(bhi(2,13))
+          case(1) 
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_cumulus", "none") )
+          case(2)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_cumulus","Anthes-Kuo") )
+          case(3)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_cumulus","Grell") )
+          case(4)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_cumulus","Arakawa-Schubert") )
+          case(5)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_cumulus","Fritsch-Chappell") )
+          case(6)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_cumulus","Kain-Fritsch") )
+          case(7)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_cumulus","Betts-Miller") )
+          case(8)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_cumulus","Kain-Fritsch") )
+        end select
+
+
+        selectcase(bhi(3,13))
+          case(1) 
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_physics", "Dry") )
+          case(2)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_physics","Stable Precip") )
+          case(3)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_physics","Warm Rain") )
+          case(4)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_physics","Simple Ice") )
+          case(5)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_physics","Mixed-Phase") )
+          case(6)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_physics","Goddard microphysics") )
+          case(7)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_physics","Reisner graupel") )
+          case(8)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_physics","Schultz microphysics") )
+        end select
+
+        selectcase(bhi(4,13))
+          case(0) 
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_pbl", "none") )
+          case(1)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_pbl","Bulk PBL") )
+          case(2)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_pbl","High-resolution Blackadar") )
+          case(3)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_pbl","Burk-Thompson") )
+          case(4)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_pbl","Eta") )
+          case(5)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_pbl","MRF") )
+          case(6)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_pbl","Gayno-Seaman") )
+          case(7)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "param_pbl","Pleim-Chang ") )
+        end select
+
+        selectcase(bhi(5,13))
+          case(0) 
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "land_surface_model", "Force/restore") )
+          case(1)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "land_surface_model","Five-Layer") )
+          case(2)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "land_surface_model","Noah LSM") )
+          case(3)
+            call check( nf90_put_att(ncid, NF90_GLOBAL, "land_surface_model","Pleim-Xiu") )
+        end select
+
+
+
+        call check(nf90_def_dim(ncid, "time", NF90_UNLIMITED, t_dimid))
+        call check(nf90_def_dim(ncid, "x", jlx, x_dimid))
+        call check(nf90_def_dim(ncid, "y", ilx, y_dimid))
+        
+
+        ! Setting projection
+        call check( nf90_def_var(ncid, "Lambert_Conformal", NF90_INT, proyec_varid))
+        call check( nf90_put_att(ncid, proyec_varid, "grid_mapping_name", "lambert_conformal_conic") )
+        call check( nf90_put_att(ncid, proyec_varid, "cone_type", "secant") )
+        call check( nf90_put_att(ncid, proyec_varid, "northern_parallel", bhr(5,1)) )
+        call check( nf90_put_att(ncid, proyec_varid, "southern_parallel", bhr(6,1) ) )
+        call check( nf90_put_att(ncid, proyec_varid, "latitude_of_projection_origin", bhr(2,1) ))
+        call check( nf90_put_att(ncid, proyec_varid, "longitude_of_central_meridian", bhr(3,1) ))
+
+        ! Creating var time
+        call check( nf90_def_var(ncid, "time", NF90_INT, (/t_dimid/), time_varid))
+        call check( nf90_put_att(ncid, time_varid, "units", "hours since 1000-01-01 00:00:00.0") )
+        call check( nf90_put_att(ncid, time_varid, "calendar", "360_days"))
+        call check( nf90_put_att(ncid, time_varid, "long_name", "time"))
+
+        ! Creating vertical level dimension (sigma or preasure)
+        if(ztype.eq.2)then
+          allocate(dummy3d(mjx,mix,nplevs))
+          allocate(dummy2d(mjx,mix))
+          call check( nf90_def_dim(ncid, "lev", nplevs, lv_dimid))
+          count4 = (/ jlx, ilx, nplevs, 1 /)
+          call check( nf90_def_var(ncid, "lev", NF90_REAL, (/lv_dimid/), lv_varid))
+          call check( nf90_put_att(ncid, lv_varid, "long_name", "Vertical levels") )
+          call check( nf90_put_att(ncid, lv_varid, "units", "Pa") )
+        else
+          allocate(dummy3d(mjx,mix,mkx))
+          allocate(dummy2d(mjx,mix))
+          call check( nf90_def_dim(ncid, "z", mkx, z_dimid))
+          count4 = (/ jlx, ilx, mkx, 1 /)
+        endif
+
+        ! Creating vertical 2D dimensions
+        call check( nf90_def_dim(ncid, "height", 1, height_dimid))
+        call check( nf90_def_dim(ncid, "heightv", 1, heightv_dimid))
+
+        call check( nf90_def_var(ncid, "height", NF90_REAL, (/height_dimid/), height_varid))
+        call check( nf90_put_att(ncid, height_varid, "long_name", "height above the ground") )
+        call check( nf90_put_att(ncid, height_varid, "standard_name", "height") )
+        call check( nf90_put_att(ncid, height_varid, "units", "m") )
+
+        call check( nf90_def_var(ncid, "heightv", NF90_REAL, (/heightv_dimid/), heightv_varid))
+        call check( nf90_put_att(ncid, heightv_varid, "long_name", "height above the ground") )
+        call check( nf90_put_att(ncid, heightv_varid, "standard_name", "height") )
+        call check( nf90_put_att(ncid, heightv_varid, "units", "m") )
+        
+
+        ! Creating coordinates
+        call check( nf90_def_var(ncid, "lat", NF90_REAL,(/x_dimid, y_dimid/),xlat_varid) )
+        call check( nf90_put_att(ncid, xlat_varid,"units", "degrees_north"))
+        call check( nf90_put_att(ncid, xlat_varid,"standard_name","Latitude"))
+        call check( nf90_put_att(ncid, xlat_varid,"long_name","Latitude"))
+        call check( nf90_def_var(ncid, "lon", NF90_REAL,(/x_dimid, y_dimid/),xlon_varid) )
+        call check( nf90_put_att(ncid, xlon_varid,"units", "degrees_east"))
+        call check( nf90_put_att(ncid, xlon_varid,"standard_name","Longitude"))
+        call check( nf90_put_att(ncid, xlon_varid,"long_name","Longitude"))
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      elseif(flag.eq.1)then
+        read(ifile,iostat=ierr)                                          &
+          ndim,(start_index(i),i=1,4),(end_index(i),i=1,4),              &
+          xtime,staggering,ordering,current_date,name,units,description
+        sample=0.
+
+
+        fecha(1:4)=current_date(1:4)
+        fecha(5:6)=current_date(6:7)
+        fecha(7:8)=current_date(9:10)
+        fecha(9:10)=current_date(12:13)
+        fecha(11:12)=current_date(15:16)
+!        read(fecha(1:10),*)ifecha
+        read(fecha(1:4),*)iy
+        read(fecha(5:6),*)imon
+        read(fecha(7:8),*)id
+        read(fecha(9:10),*)ih
+        read(fecha(11:12),*)imin
+
+        if(ordering.eq.'YXS ' .or. ordering.eq.'YXP ')then
+          if(name(1:9).eq.'U        ')then
+            if(iallo.eq.0)allocate(u(mix,mjx,mkx))
+            read(ifile,iostat=ierr) u
+            sample=u(1,1,kl)
+            stat_u=1
+          elseif(name(1:9).eq.'V        ')then
+            if(iallo.eq.0) allocate(v(mix,mjx,mkx))
+            read(ifile,iostat=ierr) v
+            sample=v(1,1,kl)
+            stat_v=1
+          elseif(name(1:9).eq.'T        ')then
+            if(iallo.eq.0)allocate(t(mix,mjx,mkx))
+            read(ifile,iostat=ierr) t
+            sample=t(1,1,kl) 
+            stat_t=1
+          elseif(name(1:9).eq.'Q        ')then
+            if(iallo.eq.0) allocate(qv(mix,mjx,mkx))
+            read(ifile,iostat=ierr) qv
+            sample=qv(1,1,kl) 
+            stat_qv=1
+          elseif(name(1:9).eq.'CLW      ')then
+            if(iallo.eq.0) allocate(qc(mix,mjx,mkx))
+            read(ifile,iostat=ierr) qc
+            sample=qc(1,1,kl) 
+            stat_qc=1
+          elseif(name(1:9).eq.'RNW      ')then
+            if(iallo.eq.0) allocate(qr(mix,mjx,mkx))
+            read(ifile,iostat=ierr) qr
+            sample=qr(1,1,kl) 
+            stat_qr=1
+          elseif(name(1:9).eq.'RAD TEND ')then
+            if(iallo.eq.0) allocate(rtnd(mix,mjx,mkx))
+            read(ifile,iostat=ierr) rtnd
+            sample=rtnd(1,1,kl) 
+            stat_rtnd=1
+          elseif(name(1:9).eq.'PP       ')then
+            if(iallo.eq.0) allocate(pp(mix,mjx,mkx))
+            read(ifile,iostat=ierr) pp
+            sample=pp(1,1,kl) 
+            stat_pp=1
+          elseif(name(1:9).eq.'RH       ')then
+            if(iallo.eq.0) allocate(rh(mix,mjx,mkx))
+            read(ifile,iostat=ierr) rh
+            sample=rh(1,1,kl)
+            stat_rh=1
+          elseif(name(1:9).eq.'H        ')then
+            if(iallo.eq.0) allocate(h(mix,mjx,mkx))
+            read(ifile,iostat=ierr) h
+            sample=h(1,1,kl)
+            stat_h=1
+          elseif(name(1:9).eq.'RHO      ')then
+             if(iallo.eq.0) allocate(rho(mix,mjx,mkx))
+             read(ifile,iostat=ierr) rho
+             sample=rho(1,1,kl)
+             stat_rho=1
+          elseif(name(1:9).eq.'ICE      ')then
+            if(iallo.eq.0) allocate(qi(mix,mjx,mkx))
+            read(ifile,iostat=ierr) qi
+            sample=qi(1,1,kl)
+            stat_qi=1
+          elseif(name(1:9).eq.'SNOW     ')then
+            if(iallo.eq.0) allocate(qs(mix,mjx,mkx))
+            read(ifile,iostat=ierr) qs
+            sample=qs(1,1,kl)
+            stat_qs=1
+          elseif(name(1:9).eq.'GRAUPEL  ')then
+            if(iallo.eq.0) allocate(qg(mix,mjx,mkx))
+            read(ifile,iostat=ierr) qg
+            sample=qg(1,1,kl)
+            stat_qg=1
+          elseif(name(1:9).eq.'NCI      ')then
+            if(iallo.eq.0) allocate(nci(mix,mjx,mkx))
+            read(ifile,iostat=ierr) nci
+            sample=nci(1,1,kl)
+            stat_nci=1
+          elseif(name(1:9).eq.'TKE      ')then
+            if(iallo.eq.0) allocate(tke(end_index(1),end_index(2),end_index(3)))
+            read(ifile,iostat=ierr) tke
+            sample=tke(1,1,kl)
+            stat_tke=1
+          elseif(name(1:9).eq.'W        ')then
+            if(iallo.eq.0) allocate(w(end_index(1),end_index(2),end_index(3)))
+            read(ifile,iostat=ierr) w
+            sample=w(1,1,kl)
+            stat_w=1
+          else
+            allocate(dum3d(mix,mjx,mkx))
+            read(ifile,iostat=ierr) dum3d
+            sample=dum3d(1,1,kl)
+            deallocate(dum3d)
+          endif
+        elseif(ordering.eq.'YXW ')then
+          if(name.eq.'W        ')then
+            if(iallo.eq.0) allocate(w(mix,mjx,mkx+1))
+            read(ifile,iostat=ierr) w
+            sample=w(1,1,kl)
+            stat_w=1
+          elseif(name(1:9).eq.'TKE      ')then
+            if(iallo.eq.0) allocate(tke(mix,mjx,mkx+1))
+            read(ifile,iostat=ierr) tke
+            sample=tke(1,1,kl)
+            stat_tke=1
+          else
+            allocate(dum3d(mix,mjx,mkx+1))
+            read(ifile,iostat=ierr) dum3d
+            sample=dum3d(i,i,kl)
+            deallocate(dum3d)
+          endif
+        elseif(ordering.eq.'YX  ')then
+          if(name.eq.'PSTARCRS ')then
+            if(iallo.eq.0) allocate(ps(mix,mjx))
+            read(ifile,iostat=ierr) ps
+            sample=ps(1,1)
+            if(iallo.eq.0) IFPS=IFPS+1
+          elseif(name.eq.'GROUND T ')then
+            if(iallo.eq.0) allocate(tg(mix,mjx))
+            read(ifile,iostat=ierr) tg
+            sample=tg(1,1) 
+            if(iallo.eq.0) IFTG=IFTG+1
+          elseif(name.eq.'RAIN CON ')then
+            if(iallo.eq.0) then
+              allocate(prc(mix,mjx))
+              allocate(prc_old(mix,mjx))
+              allocate(pre(mix,mjx))
+            endif
+            read(ifile,iostat=ierr) prc
+            sample=prc(1,1) 
+            if(iallo.eq.0)then
+              IFRC=IFRC+1
+              IFPRE=IFPRE+1
+            endif
+          elseif(name.eq.'RAIN NON ')then
+            if(iallo.eq.0)then
+              allocate(prls(mix,mjx))
+              allocate(prls_old(mix,mjx))
+              !allocate(pre(mix,mjx))
+            endif
+            read(ifile,iostat=ierr) prls
+            sample=prls(1,1) 
+            if(iallo.eq.0)then
+              IFRN=IFRN+1
+              !IFPRE=IFPRE+1
+            endif
+          elseif(name.eq.'TERRAIN  ')then
+            if(iallo.eq.0) allocate(ter(mix,mjx))
+            read(ifile,iostat=ierr)ter 
+            sample=ter(1,1) 
+            if(iallo.eq.0) IFTER=IFTER+1
+          elseif(name.eq.'MAPFACCR ')then
+            if(iallo.eq.0) allocate(xmf(mix,mjx))
+            read(ifile,iostat=ierr) xmf
+            sample=xmf(1,1) 
+            if(iallo.eq.0) IFXMF=IFXMF+1
+          elseif(name.eq.'MAPFACDT ')then
+            if(iallo.eq.0) allocate(dmf(mix,mjx))
+            read(ifile,iostat=ierr) dmf
+            sample=dmf(1,1) 
+            if(iallo.eq.0) IFDMF=IFDMF+1
+          elseif(name.eq.'CORIOLIS ')then
+            if(iallo.eq.0) allocate(cor(mix,mjx))
+            read(ifile,iostat=ierr) cor
+            sample=cor(1,1) 
+            if(iallo.eq.0) IFCOR=IFCOR+1
+          elseif(name.eq.'RES TEMP ')then
+            if(iallo.eq.0) allocate(tr(mix,mjx))
+            read(ifile,iostat=ierr) tr 
+            sample=tr(1,1) 
+            if(iallo.eq.0) IFTR=IFTR+1
+          elseif(name.eq.'LATITCRS ')then
+            if(iallo.eq.0) allocate(xlat(mix,mjx))
+            read(ifile,iostat=ierr) xlat
+            sample=xlat(1,1) 
+            if(iallo.eq.0) IFXLAT=IFXLAT+1
+          elseif(name.eq.'LONGICRS ')then
+            if(iallo.eq.0) allocate(xlon(mix,mjx))
+            read(ifile,iostat=ierr) xlon
+            sample=xlon(1,1) 
+            if(iallo.eq.0) IFXLON=IFXLON+1
+          elseif(name.eq.'LATITDOT ')then
+            if(iallo.eq.0) allocate(xlatd(mix,mjx))
+            read(ifile,iostat=ierr) xlatd
+            sample=xlatd(1,1) 
+            if(iallo.eq.0) IFXLATD=IFXLATD+1
+          elseif(name.eq.'LONGIDOT ')then
+            if(iallo.eq.0) allocate(xlond(mix,mjx))
+            read(ifile,iostat=ierr) xlond
+            sample=xlond(1,1) 
+            if(iallo.eq.0) IFXLOND=IFXLOND+1
+          elseif(name.eq.'LANDMASK ')then
+            if(iallo.eq.0) allocate(lm(mix,mjx))
+            read(ifile,iostat=ierr) lm
+            sample=lm(1,1) 
+            if(iallo.eq.0) IFLM=IFLM+1
+          elseif(name.eq.'LAND USE ')then
+            if(iallo.eq.0) allocate(lu(mix,mjx))
+            read(ifile,iostat=ierr) lu
+            sample=lu(1,1) 
+            if(iallo.eq.0) IFLU=IFLU+1
+          elseif(name.eq.'VEGFRC   ')then
+            if(iallo.eq.0) allocate(vgf(mix,mjx))
+            read(ifile,iostat=ierr) vgf
+            sample=vgf(1,1) 
+            if(iallo.eq.0) IFVGF=IFVGF+1
+          elseif(name.eq.'SNOWCOVR ')then
+            if(iallo.eq.0) allocate(sc(mix,mjx))
+            read(ifile,iostat=ierr) sc
+            sample=sc(1,1) 
+            if(iallo.eq.0) IFSC=IFSC+1
+          elseif(name.eq.'TSEASFC  ')then
+            if(iallo.eq.0) allocate(sst(mix,mjx))
+            read(ifile,iostat=ierr) sst
+            sample=sst(1,1) 
+            if(iallo.eq.0) IFSST=IFSST+1
+          elseif(name.eq.'PBL HGT  ')then
+            if(iallo.eq.0) allocate(pblh(mix,mjx))
+            read(ifile,iostat=ierr) pblh
+            sample=pblh(1,1) 
+            if(iallo.eq.0) IFPBLH=IFPBLH+1
+          elseif(name.eq.'REGIME   ')then
+            if(iallo.eq.0) allocate(pblr(mix,mjx))
+            read(ifile,iostat=ierr) pblr
+            sample=pblr(1,1) 
+            if(iallo.eq.0) IFPBLR=IFPBLR+1
+          elseif(name.eq.'SHFLUX   ')then
+            if(iallo.eq.0) allocate(shf(mix,mjx))
+            read(ifile,iostat=ierr) shf
+            sample=shf(1,1) 
+            if(iallo.eq.0) IFSHF=IFSHF+1
+          elseif(name.eq.'LHFLUX   ')then
+            if(iallo.eq.0) allocate(lhf(mix,mjx))
+            read(ifile,iostat=ierr) lhf
+            sample=lhf(1,1) 
+            if(iallo.eq.0) IFLHF=IFLHF+1
+          elseif(name.eq.'GRNFLX   ')then
+            if(iallo.eq.0) allocate(ghf(mix,mjx))
+            read(ifile,iostat=ierr) ghf
+            sample=ghf(1,1) 
+            if(iallo.eq.0) IFGHF=IFGHF+1
+          elseif(name.eq.'UST      ')then
+            if(iallo.eq.0) allocate(ust(mix,mjx))
+            read(ifile,iostat=ierr) ust
+            sample=ust(1,1) 
+            if(iallo.eq.0) IFUST=IFUST+1
+          elseif(name.eq.'SWDOWN   ')then
+            if(iallo.eq.0) allocate(swd(mix,mjx))
+            read(ifile,iostat=ierr) swd
+            sample=swd(1,1) 
+            if(iallo.eq.0) IFSWD=IFSWD+1
+          elseif(name.eq.'LWDOWN   ')then
+            if(iallo.eq.0) allocate(lwd(mix,mjx))
+            read(ifile,iostat=ierr) lwd
+            sample=lwd(1,1) 
+            if(iallo.eq.0) IFLWD=IFLWD+1
+          elseif(name.eq.'SWOUT   ')then
+            if(iallo.eq.0) allocate(swo(mix,mjx))
+            read(ifile,iostat=ierr) swo
+            sample=swo(1,1) 
+            if(iallo.eq.0) IFSWO=IFSWO+1
+          elseif(name.eq.'LWOUT   ')then
+            if(iallo.eq.0) allocate(lwo(mix,mjx))
+            read(ifile,iostat=ierr) lwo
+            sample=lwo(1,1) 
+            if(iallo.eq.0) IFLWO=IFLWO+1
+          elseif(name.eq.'MAVAIL   ')then
+            if(iallo.eq.0) allocate(mav(mix,mjx))
+            read(ifile,iostat=ierr) mav
+            sample=mav(1,1) 
+            if(iallo.eq.0) IFMAV=IFMAV+1
+          elseif(name.eq.'SOIL T 1 ')then
+            if(iallo.eq.0) allocate(st1(mix,mjx))
+            read(ifile,iostat=ierr) st1
+            sample=st1(1,1) 
+            if(iallo.eq.0) IFST1=IFST1+1
+          elseif(name.eq.'SOIL T 2 ')then
+            if(iallo.eq.0) allocate(st2(mix,mjx))
+            read(ifile,iostat=ierr) st2
+            sample=st2(1,1)
+            if(iallo.eq.0) IFST2=IFST2+1
+          elseif(name.eq.'SOIL T 3 ')then
+            if(iallo.eq.0) allocate(st3(mix,mjx))
+            read(ifile,iostat=ierr) st3
+            sample=st3(1,1) 
+            if(iallo.eq.0) IFST3=IFST3+1
+          elseif(name.eq.'SOIL T 4 ')then
+            if(iallo.eq.0) allocate(st4(mix,mjx))
+            read(ifile,iostat=ierr) st4
+            sample=st4(1,1) 
+            if(iallo.eq.0) IFST4=IFST4+1
+          elseif(name.eq.'SOIL T 5 ')then
+            if(iallo.eq.0) allocate(st5(mix,mjx))
+            read(ifile,iostat=ierr) st5
+            sample=st5(1,1) 
+            if(iallo.eq.0) IFST5=IFST5+1
+          elseif(name.eq.'SOIL T 6 ')then
+            if(iallo.eq.0) allocate(st6(mix,mjx))
+            read(ifile,iostat=ierr) st6
+            sample=st6(1,1) 
+            if(iallo.eq.0) IFST6=IFST6+1
+          elseif(name.eq.'SOIL M 1 ')then
+            if(iallo.eq.0) allocate(sm1(mix,mjx))
+            read(ifile,iostat=ierr) sm1
+            sample=sm1(1,1) 
+            if(iallo.eq.0) IFSM1=IFSM1+1
+          elseif(name.eq.'SOIL M 2 ')then
+            if(iallo.eq.0) allocate(sm2(mix,mjx))
+            read(ifile,iostat=ierr) sm2
+            sample=sm2(1,1) 
+            if(iallo.eq.0) IFSM2=IFSM2+1
+          elseif(name.eq.'SOIL M 3 ')then
+            if(iallo.eq.0) allocate(sm3(mix,mjx))
+            read(ifile,iostat=ierr) sm3
+            sample=sm3(1,1) 
+            if(iallo.eq.0) IFSM3=IFSM3+1
+          elseif(name.eq.'SOIL M 4 ')then
+            if(iallo.eq.0) allocate(sm4(mix,mjx))
+            read(ifile,iostat=ierr) sm4
+            sample=sm4(1,1) 
+            if(iallo.eq.0) IFSM4=IFSM4+1
+          elseif(name.eq.'SOIL W 1 ')then
+            if(iallo.eq.0) allocate(sw1(mix,mjx))
+            read(ifile,iostat=ierr) sw1
+            sample=sw1(1,1) 
+            if(iallo.eq.0) IFSW1=IFSW1+1
+          elseif(name.eq.'SOIL W 2 ')then
+            if(iallo.eq.0) allocate(sw2(mix,mjx))
+            read(ifile,iostat=ierr) sw2
+            sample=sw2(1,1) 
+            if(iallo.eq.0) IFSW2=IFSW2+1
+          elseif(name.eq.'SOIL W 3 ')then
+            if(iallo.eq.0) allocate(sw3(mix,mjx))
+            read(ifile,iostat=ierr) sw3
+            sample=sw3(1,1) 
+            if(iallo.eq.0) IFSW3=IFSW3+1
+          elseif(name.eq.'SOIL W 4 ')then
+            if(iallo.eq.0) allocate(sw4(mix,mjx))
+            read(ifile,iostat=ierr) sw4
+            sample=sw4(1,1) 
+            if(iallo.eq.0) IFSW4=IFSW4+1
+          elseif(name.eq.'CANOPYM  ')then
+            if(iallo.eq.0) allocate(can(mix,mjx))
+            read(ifile,iostat=ierr) can
+            sample=can(1,1) 
+            if(iallo.eq.0) IFCAN=IFCAN+1
+          elseif(name.eq.'SNOWH    ')then
+            if(iallo.eq.0) allocate(snh(mix,mjx))
+            read(ifile,iostat=ierr) snh
+            sample=snh(1,1) 
+            if(iallo.eq.0) IFSNH=IFSNH+1
+          elseif(name.eq.'SNODPTH  ')then
+            if(iallo.eq.0) allocate(snd(mix,mjx))
+            read(ifile,iostat=ierr) snd
+            sample=snd(1,1) 
+            if(iallo.eq.0) IFSND=IFSND+1
+          elseif(name.eq.'WEASD    ')then
+            if(iallo.eq.0) allocate(wsd(mix,mjx))
+            read(ifile,iostat=ierr) wsd
+            sample=wsd(1,1) 
+            if(iallo.eq.0) IFWSD=IFWSD+1
+          elseif(name.eq.'SEAICE   ')then
+            if(iallo.eq.0) allocate(ssi(mix,mjx))
+            read(ifile,iostat=ierr) ssi
+            sample=ssi(1,1) 
+            if(iallo.eq.0) IFSEAICE=IFSEAICE+1
+          elseif(name.eq.'SEAICEFR ')then
+            if(iallo.eq.0) allocate(sif(mix,mjx))
+            read(ifile,iostat=ierr) sif
+            sample=sif(1,1) 
+            !if(iallo.eq.0) IFSEAICE=IFSEAICE+1
+            print*, 'allocatando'
+          elseif(name.eq.'SFCRNOFF ')then
+            if(iallo.eq.0) then
+               allocate(mrros(mix,mjx))
+               allocate(mrros_old(mix,mjx))
+            endif
+            read(ifile,iostat=ierr) mrros
+            sample=mrros(1,1) 
+            if(iallo.eq.0) IFSRO=IFSRO+1
+          elseif(name.eq.'UGDRNOFF ')then
+            if(iallo.eq.0) then
+              allocate(uro(mix,mjx))
+              allocate(uro_old(mix,mjx))
+            endif
+            read(ifile,iostat=ierr) uro
+            sample=uro(1,1) 
+            if(iallo.eq.0) IFURO=IFURO+1
+          elseif(name.eq.'T2       ')then
+            if(iallo.eq.0)allocate(t2m(mix,mjx))
+            read(ifile,iostat=ierr) t2m
+            sample=t2m(1,1) 
+            if(iallo.eq.0) IFT2M=IFT2M+1
+          elseif(name.eq.'Q2       ')then
+            if(iallo.eq.0) allocate(q2m(mix,mjx))
+            read(ifile,iostat=ierr) q2m
+            sample=q2m(1,1) 
+            if(iallo.eq.0) IFQ2M=IFQ2M+1
+          elseif(name.eq.'U10      ')then
+            if(iallo.eq.0) allocate(uas(mix,mjx))
+            read(ifile,iostat=ierr) uas
+            sample=uas(1,1) 
+            if(iallo.eq.0) IFUAS=IFUAS+1
+          elseif(name.eq.'V10      ')then
+            if(iallo.eq.0) allocate(vas(mix,mjx))
+            read(ifile,iostat=ierr) vas
+            sample=vas(1,1) 
+            if(iallo.eq.0) IFVAS=IFVAS+1
+          elseif(name.eq.'ALB      ')then
+            if(iallo.eq.0) allocate(alb(mix,mjx))
+            read(ifile,iostat=ierr) alb
+            sample=alb(1,1) 
+            if(iallo.eq.0) IFALB=IFALB+1
+          elseif(name.eq.'ALBEDO   ')then
+            if(iallo.eq.0) allocate(abb(mix,mjx))
+            read(ifile,iostat=ierr) abb
+            sample=abb(1,1) 
+            if(iallo.eq.0) IFABB=IFABB+1
+          elseif(name.eq.'ALBSNOMX ')then
+            if(iallo.eq.0) allocate(asb(mix,mjx))
+            read(ifile,iostat=ierr) asb
+            sample=asb(1,1) 
+            if(iallo.eq.0) IFASB=IFASB+1
+          elseif(name.eq.'PSEALVLC ')then
+            if(iallo.eq.0) allocate(pslv(mix,mjx))
+            read(ifile,iostat=ierr) pslv
+            sample=pslv(1,1)
+            stat_pslv=1
+          elseif(name.eq.'MV10 ')then
+            if(iallo.eq.0)allocate(mv10(mix,mjx))
+            read(ifile,iostat=ierr) mv10
+            sample=mv10(1,1)
+            stat_mv10=1
+          elseif(name.eq.'DIR10 ')then
+            if(iallo.eq.0) allocate(dir10(mix,mjx))
+            read(ifile,iostat=ierr) dir10
+            sample=dir10(1,1)
+            stat_dir10=1
+          else
+            allocate(dum2d(mix,mjx))
+            read(ifile,iostat=ierr) dum2d
+            sample=dum2d(1,1) 
+            deallocate(dum2d)
+          endif
+        elseif(ordering.eq.'CA  ')then
+          allocate(dumsfc(end_index(1),end_index(2)))
+          read(ifile,iostat=ierr) dumsfc
+          deallocate(dumsfc)
+        elseif(ordering.eq.'S   ')then
+          if(name.eq.'SIGMAH   ')then
+            if(iallo.eq.0) allocate(sigma(mkx))
+            read(ifile,iostat=ierr) sigma
+            sample=sigma(kl)
+          else
+            allocate(dum1d(mkx))
+            read(ifile,iostat=ierr) dum1d
+            sample=dum1d(kl)
+            deallocate(dum1d)
+          endif
+        elseif(ordering.eq.'P   ')then
+          if(name.eq.'PRESSURE ')then
+            if(iallo.eq.0) allocate(pvals(mkx))
+            read(ifile,iostat=ierr) pvals
+            sample=pvals(kl)
+          else
+            allocate(dum1d(end_index(1)))
+            read(ifile,iostat=ierr) dum1d
+            sample=dum1d(1)
+            deallocate(dum1d)
+          endif
+        else
+          print *,'dont know how to read this'
+          stop 1111
+        endif
+      !  write(*,'(A8,1x,I1,4(1x,I3),1x,A,1x,A," : ", F20.8,1x,A)')&
+      !    name, ndim, end_index(1), end_index(2), end_index(3), end_index(4),&
+      !    staggering, ordering, sample, trim(units)
+      endif 
+      read(ifile,iostat=ierr)flag
+    enddo
+
+    print *,'----- found end of time period -----'
+    iallo=1
+
+    if(nread.ge.timin) nout=1
+    if(mod(nread-timin,nskip).ne.0) nout=0
+    if(nout.eq.0) read(ifile,iostat=ierr)flag
+  enddo
+
+!cccccccccccccccccccccccccccccccccccccccc
+
+      if((nread-timin+1).eq.1)then
+
+        print *
+        print *,'Found first requested output time'
+
+
+        iallo=0
+
+        if(IFSKEW.eq.1)then
+          IX1=ISKW
+          JX1=JSKW
+          IX2=ISKW
+          JX2=JSKW
+          print *,'Printing 1 column only'
+          print *,'   ISKW,JSKW=',ISKW,JSKW
+        else
+          IX1=1
+          JX1=1
+          IX2=ilx
+          JX2=jlx
+        endif
+
+          mrecl = 4
+#ifdef recl
+          mrecl = 1
+#endif
+
+#ifdef linux
+        if(IFSKEW.eq.1)then
+          OPEN(UNIT=80)
+        else
+          OPEN(UNIT=80)
+        endif
+#endif
+#ifdef DEC
+        if(IFSKEW.eq.1)then
+          OPEN(UNIT=80,FORM='UNFORMATTED',ACCESS='DIRECT',RECL=1,     &
+             STATUS='UNKNOWN')
+        else
+          OPEN(UNIT=80,FORM='UNFORMATTED',                            &
+             ACCESS='DIRECT',RECL=(ilx*jlx),STATUS='UNKNOWN')
+        endif
+#endif
+        open(unit=81,status='unknown')
+
+        if(p00.gt.0. .and. ts0.gt.0. .and. tlp.gt.0. .and. index.ne.8 &
+                     .and. ifz .eq. 1 )then
+
+          if(iallo.eq.0) allocate(z(mix,mjx,mkx))
+
+          do k=1,kl
+          do j=1,jlx
+          do i=1,ilx
+            ps0=p00*exp( (-1.*ts0/tlp)+(( ((ts0/tlp)**2.)-             &
+                  (2.*G*(ter(i,j)/(tlp*R)))  )**0.5) )
+            phydro=(ps0-ptop)*sigma(k)+ptop
+            z(i,j,k)=-1.*(  ((R*tlp/2./G)*((ALOG(phydro/p00)**2)))     &
+                 + ((R*ts0/G)*ALOG(phydro/p00))  )
+            z(i,j,k)=z(i,j,k)-ter(i,j)
+          enddo
+          enddo
+          enddo
+        else
+          ifz = 0
+        endif
+
+      ENDIF
+
+
+!  get pressure (in Pa)
+
+      if(iallo.eq.0) allocate(prs(mix,mjx,mkx))
+
+      if(index.eq.1)then
+        do k=1,kl
+        do j=1,jlx
+        do i=1,ilx
+          prs(i,j,k)=0.
+        enddo
+        enddo
+        enddo
+      elseif(index.eq.11 .or. index.eq.5)then
+        do k=1,kl
+        do j=1,jlx
+        do i=1,ilx
+          prs(i,j,k)=ps(i,j)*sigma(k)+ptop+pp(i,j,k)
+        enddo
+        enddo
+        enddo
+      else
+        do k=1,kl
+        do j=1,jlx
+        do i=1,ilx
+          prs(i,j,k)=pvals(k)
+        enddo
+        enddo
+        enddo 
+      endif
+
+      print *
+      print *,'Calculating derived variables ...'
+!
+!cccccccccccccccccccccccccccccccccccccccccccccccccc
+!  Check to see what is available
+
+  IF(iallo.eq.0)THEN
+    print *,'  Checking for availability of data.'
+    if(stat_u.eq.0)then
+      if(IFU.eq.1)then
+        IFU=0
+!        print *,'      IFU'
+      endif
+    endif
+    if(stat_v.eq.0)then
+      if(IFV.eq.1)then
+        IFV=0
+!        print *,'      IFV'
+      endif
+    endif
+    if(stat_u.eq.0 .or. stat_v.eq.0)then
+      if(IFVOR.eq.1)then
+        IFVOR=0
+!        print *,'      IFVOR'
+      endif
+      if(IFPV.eq.1)then
+        IFPV=0
+!        print *,'      IFPV'
+      endif
+      if(IFDIV.eq.1)then
+        IFDIV=0
+!        print *,'      IFDIV'
+      endif
+      if(IFDIR.eq.1)then
+        IFDIR=0
+!        print *,'      IFDIR'
+      endif
+      if(IFMV.eq.1)then
+        IFMV=0
+!        print *,'      IFDIR'
+      endif
+      if(IFTADV.eq.1)then
+        IFTADV=0
+!        print *,'      IFTADV'
+      endif
+    endif
+    if(stat_t.eq.0)then
+      if(IFT.eq.1)then
+        IFT=0
+!        print *,'      IFT'
+      endif
+      if(IFTH.eq.1)then
+        IFTH=0
+!        print *,'      IFTH'
+      endif
+      if(IFPSLV.eq.1 .and. (index.eq.5.or.index.eq.11) )then
+        IFPSLV=0
+!        print *,'      IFPSLV'
+      endif
+      if(IFTADV.eq.1)then
+        IFTADV=0
+!        print *,'      IFTADV'
+      endif
+    endif
+    if(stat_qv.eq.0)then
+      if(IFQ.eq.1)then
+        IFQ=0
+!        print *,'      IFQ'
+      endif
+      if(IFPWAT.eq.1)then
+        IFPWAT=0
+!        print *,'      IFPWAT'
+      endif
+    endif
+    if(stat_qc.eq.0)then
+      if(IFCLW.eq.1)then
+        IFCLW=0
+!        print *,'      IFCLW'
+      endif
+      if(IFICLW.eq.1)then
+        IFICLW=0
+!        print *,'      IFICLW'
+      endif
+    endif
+    if(stat_qr.eq.0)then
+      if(IFRNW.eq.1)then
+        IFRNW=0
+!        print *,'      IFRNW'
+      endif
+      if(IFIRNW.eq.1)then
+        IFIRNW=0
+!        print *,'      IFIRNW'
+      endif
+    endif
+    if(stat_rtnd.eq.0)then
+      if(IFRTND.eq.1)then
+        IFRTND=0
+!        print *,'      IFRTND'
+      endif
+    endif
+    if(stat_tke.eq.0)then
+      if(IFTKE.eq.1)then
+        IFTKE=0
+!        print *,'      IFTKE'
+      endif
+    endif
+    if(stat_qi.eq.0)then
+      if(IFICE.eq.1)then
+        IFICE=0
+!        print *,'      IFICE'
+      endif
+    endif
+    if(stat_qs.eq.0)then
+      if(IFSNOW.eq.1)then
+        IFSNOW=0
+!        print *,'      IFSNOW'
+      endif
+    endif
+    if(stat_qg.eq.0)then
+      if(IFGRAUP.eq.1)then
+        IFGRAUP=0
+!        print *,'      IFGRAUP'
+      endif
+    endif
+    if(stat_nci.eq.0)then
+      if(IFNCI.eq.1)then
+        IFNCI=0
+!        print *,'      IFNCI'
+      endif
+    endif
+    if(stat_w.eq.0)then
+      if(IFW.eq.1)then
+        IFW=0
+!        print *,'      IFW'
+      endif
+    endif
+
+    if(stat_t.eq.0 .or. stat_qv.eq.0)then
+      if( (index.eq.11.or.index.eq.5) .and. IFRH.eq.1 )then
+        IFRH=0
+!        print *,'      IFRH'
+        IFCLFR=0
+!        print *,'      IFCLFR'
+      endif
+      if(IFTD.eq.1)then
+        IFTD=0
+!        print *,'      IFTD'
+      endif
+      if(IFTHE.eq.1)then
+        IFTHE=0
+!        print *,'      IFTHE'
+      endif
+    endif
+    if(stat_qr.eq.0)then
+      IF(IFDBZ.eq.1 .or. IFCREF.eq.1)then
+        IFDBZ=0
+!        print *,'      IFDBZ'
+        IFCREF=0
+!        print *,'      IFCREF'
+      endif
+    endif
+    if(stat_pp.eq.0)then
+      if(IFPP.eq.1)then
+        IFPP=0
+!        print *,'      IFPP'
+      endif
+      if(IFPSLV.eq.1 .and. (index.eq.5.or.index.eq.11) )then
+        IFPSLV=0
+!        print *,'      IFPSLV'
+      endif
+    endif
+
+    if(index.ne.5 .and. index.ne.11)then
+      if(IFPWAT.eq.1)then
+        IFPWAT=0
+!        print *,'      IFPWAT'
+      endif
+      if(IFICLW.eq.1)then
+        IFICLW=0
+!        print *,'      IFICLW'
+      endif
+      if(IFIRNW.eq.1)then
+        IFIRNW=0
+!        print *,'      IFIRNW'
+      endif
+      if(stat_h.eq.0)then
+        if(IFH.eq.1)then
+          IFH=0
+!          print *,'      IFH'
+        endif
+      endif
+
+      if(stat_rh.eq.0)then
+        if(IFRH.eq.1)then
+          IFRH=0
+!          print *,'      IFRH'
+          IFCLFR=0
+!          print *,'      IFCLFR'
+        endif
+      endif
+      if(stat_pslv.eq.0)then
+        if(IFPSLV.eq.1)then
+          IFPSLV=0
+!          print *,'      IFPSLV'
+        endif
+      endif
+    endif
+
+    if(index.eq.1)then
+      IFZ=0
+      IFPRS=0
+    endif
+
+
+!!  2d variables
+      IFPS  =  max(IFPS-1,0)
+      IFTG  =  max(IFTG-1,0)
+      IFRC  =  max(IFRC-1,0)
+      IFRN  =  max(IFRN-1,0)
+      IFPRE =  max(IFPRE-1,0)
+      IFTER = max(IFTER-1,0)
+      IFXMF = max(IFXMF-1,0)
+      IFDMF = max(IFDMF-1,0)
+      IFCOR = max(IFCOR-1,0)
+      IFTR  =  max(IFTR-1,0)
+      IFXLAT=max(IFXLAT-1,0)
+      IFXLON=max(IFXLON-1,0)
+      IFXLATD=max(IFXLATD-1,0)
+      IFXLOND=max(IFXLOND-1,0)
+      IFLM=max(IFLM-1,0)
+      IFLU  =  max(IFLU-1,0)
+      IFVGF = max(IFVGF-1,0)
+      IFSC  =  max(IFSC-1,0)
+      IFPBLH=max(IFPBLH-1,0)
+      IFPBLR=max(IFPBLR-1,0)
+      IFSHF = max(IFSHF-1,0)
+      IFLHF = max(IFLHF-1,0)
+      IFGHF = max(IFGHF-1,0)
+      IFUST = max(IFUST-1,0)
+      IFSWD = max(IFSWD-1,0)
+      IFLWD = max(IFLWD-1,0)
+      IFSWO = max(IFSWO-1,0)
+      IFLWO = max(IFLWO-1,0)
+      IFSST = max(IFSST-1,0)
+      IFMAV = max(IFMAV-1,0)
+      IFST1 = max(IFST1-1,0)
+      IFST2 = max(IFST2-1,0)
+      IFST3 = max(IFST3-1,0)
+      IFST4 = max(IFST4-1,0)
+      IFST5 = max(IFST5-1,0)
+      IFST6 = max(IFST6-1,0)
+      IFSM1 = max(IFSM1-1,0)
+      IFSM2 = max(IFSM2-1,0)
+      IFSM3 = max(IFSM3-1,0)
+      IFSM4 = max(IFSM4-1,0)
+      IFSW1 = max(IFSW1-1,0)
+      IFSW2 = max(IFSW2-1,0)
+      IFSW3 = max(IFSW3-1,0)
+      IFSW4 = max(IFSW4-1,0)
+      IFCAN = max(IFCAN-1,0)
+      IFSNH = max(IFSNH-1,0)
+      IFSND = max(IFSND-1,0)
+      IFWSD = max(IFWSD-1,0)
+      IFSSI = max(IFSSI-1,0)
+      IFSIF = max(IFSIF-1,0)
+      IFSRO = max(IFSRO-1,0)
+      IFURO = max(IFURO-1,0)
+      IFT2M = max(IFT2M-1,0)
+      IFQ2M = max(IFQ2M-1,0)
+      IFUAS = max(IFUAS-1,0)
+      IFVAS = max(IFVAS-1,0)
+      IFALB = max(IFALB-1,0)
+      IFABB = max(IFABB-1,0)
+      IFASB = max(IFASB-1,0)
+      IFSEAICE = max(IFSEAICE-1,0)
+
+  ENDIF
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccc
+! compute derived variables
+
+      allocate(dum3d(mix,mjx,mkx))
+
+      if(IFTH.eq.1 .or. IFPV.eq.1)then
+        if(iallo.eq.0) allocate(theta(mix,mjx,mkx))
+        call calcpt(t,prs,mix,mjx,mkx,theta)
+      endif
+      if(IFTD.eq.1 .or. IFTHE.eq.1)then
+        if(iallo.eq.0) allocate(td(mix,mjx,mkx))
+        call calctd(qv,prs,t,mix,mjx,mkx,td)
+      endif
+      if(IFTHE.eq.1)then
+        if(iallo.eq.0) allocate(thetae(mix,mjx,mkx))
+        call calcthe(qv,t,prs,mix,mjx,mkx,thetae)
+      endif
+      if(IFDBZ.EQ.1 .or. IFCREF.EQ.1)then 
+        if(iallo.eq.0) allocate(cref(mix,mjx))
+        if(iallo.eq.0) allocate(dbz(mix,mjx,mkx))
+        call calcdbz(t,qv,prs,qr,mix,mjx,mkx,dbz,cref,ifcref,iice)
+      endif
+      if(IFVOR.EQ.1 .or. IFDIV.EQ.1)then 
+        if(iallo.eq.0) allocate(div(mix,mjx,mkx))
+        if(iallo.eq.0) allocate(vor(mix,mjx,mkx))
+        call calcvordiv(u,v,dmf,xmf,dx2inv,mix,mjx,mkx,ifvor,ifdiv,   &
+                        vor,div)
+      endif
+      if(IFTADV.eq.1)then
+        if(iallo.eq.0) allocate(tadv(mix,mjx,mkx))
+        call advec(u,v,dmf,xmf,t,mix,mjx,mkx,dx,tadv)
+      endif
+
+      if(iallo.eq.0) allocate(psfc(mix,mjx))
+
+      IF(INDEX.EQ.11 .or. index.eq.5)THEN
+        DO J=1,jlx
+        DO I=1,ilx
+          PSFC(I,J)=PP(I,J,KL)+PS(I,J)+PTOP
+        ENDDO
+        ENDDO
+        if(IFPV.eq.1)then
+          allocate(dum2d(mix,mjx))
+          allocate(dum2da(mix,mjx))
+          allocate(dum2db(mix,mjx))
+          allocate(dum2dc(mix,mjx))
+          allocate(dum2dd(mix,mjx))
+          allocate(dum2de(mix,mjx))
+          if(iallo.eq.0) allocate(pv(mix,mjx,mkx))
+          CALL PVS(U,V,THETA,PRS,DMF,XMF,COR,dx,                     &
+                mix,mjx,mkx,PV,                                      &
+                dum2d,dum2da,dum2db,dum2dc,dum2dd,dum2de,dum3d)
+          deallocate(dum2d)
+          deallocate(dum2da)
+          deallocate(dum2db)
+          deallocate(dum2dc)
+          deallocate(dum2dd)
+          deallocate(dum2de)
+        endif
+        if(IFICLW.EQ.1)then
+          if(iallo.eq.0) allocate(iclw(mix,mjx))
+          allocate(dum1d(mkx+1))
+          CALL INTEGRAT(qc,PRS,PSFC,mix,mjx,mkx,SIGMA,PTOP,dum1d,ICLW)
+          deallocate(dum1d)
+        endif
+        if(IFIRNW.EQ.1)then
+          if(iallo.eq.0) allocate(irnw(mix,mjx))
+          allocate(dum1d(mkx+1))
+          CALL INTEGRAT(qr,PRS,PSFC,mix,mjx,mkx,SIGMA,PTOP,dum1d,IRNW)
+          deallocate(dum1d)
+        endif
+        if(IFPWAT.EQ.1)then
+          if(iallo.eq.0) allocate(pwat(mix,mjx))
+          allocate(dum1d(mkx+1))
+          CALL INTEGRAT(qv,PRS,PSFC,mix,mjx,mkx,SIGMA,PTOP,dum1d,PWAT)
+          deallocate(dum1d)
+        endif
+        if(IFMV10.EQ.1)then
+          if(iallo.eq.0) allocate(mv10(mix,mjx))
+          if(iallo.eq.0) allocate(dir10(mix,mjx))
+          allocate(dum1d(mkx+1))
+          CALL calcv10comp(uas,vas,mix,mjx,dir10,mv10)
+          deallocate(dum1d)
+        endif
+        if(IFDIR10.EQ.1.and.IFMV10.EQ.0)then
+          if(iallo.eq.0) allocate(mv10(mix,mjx))
+          if(iallo.eq.0) allocate(dir10(mix,mjx))
+        endif
+        if(IFDIR10.EQ.1)then
+          allocate(dum1d(mkx+1))
+          CALL calcv10comp(uas,vas,mix,mjx,dir10,mv10)
+          deallocate(dum1d)
+        endif
+        if(IFH.eq.1)then
+          if(iallo.eq.0) allocate(h(mix,mjx,mkx))
+          call nhgeosig(PS,SIGMA,PTOP,P00,TS0,TLP,mix,mjx,mkx,H)
+        endif
+        if(IFRH.eq.1 .or. IFCLFR.eq.1)then
+          if(iallo.eq.0) allocate(rh(mix,mjx,mkx))
+          call calcrh(t,qv,prs,mix,mjx,mkx,iice,rh)
+        endif
+        if(IFRHO.eq.1)then
+          if(iallo.eq.0) allocate(rho(mix,mjx,mkx))
+          call calcrho(prs,t,qv,qc,mix,mjx,mkx,rho)
+        endif
+      ELSEIF(INDEX.NE.1)THEN
+        if(IFPV.eq.1)then
+          allocate(dum2d(mix,mjx))
+          allocate(dum2da(mix,mjx))
+          allocate(dum2db(mix,mjx))
+          allocate(dum2dc(mix,mjx))
+          allocate(dum2dd(mix,mjx))
+          allocate(dum2de(mix,mjx))
+          if(iallo.eq.0) allocate(pv(mix,mjx,mkx))
+          if ( index .eq. 8 ) then
+             CALL PVP(U,V,T,DMF,XMF,COR,pvals/100.,dx,              &
+                 mix,mjx,mkx,PV,                                    &
+                 dum2d,dum2da,dum2db,dum2dc,dum2dd,dum2de,dum3d)
+          else
+             CALL PVP(U,V,T,DMF,XMF,COR,pvals,dx,                   &
+                 mix,mjx,mkx,PV,                                    &
+                 dum2d,dum2da,dum2db,dum2dc,dum2dd,dum2de,dum3d)
+          endif
+          deallocate(dum2d)
+          deallocate(dum2da)
+          deallocate(dum2db)
+          deallocate(dum2dc)
+          deallocate(dum2dd)
+          deallocate(dum2de)
+        endif
+      ENDIF
+
+      if(IFCLFR.eq.1)then
+        if(iallo.eq.0) allocate(clfrlo(mix,mjx))
+        if(iallo.eq.0) allocate(clfrmi(mix,mjx))
+        if(iallo.eq.0) allocate(clfrhi(mix,mjx))
+        call calcclfr(prs,rh,mix,mjx,mkx,clfrlo,clfrmi,clfrhi)
+      endif
+
+!-------------------------------------------------------------------
+
+! interpolate w to half-sigma levels
+      if(IFW.eq.1 .and. index.ne.8)then
+        do k=1,kl
+        do j=1,jlx
+        do i=1,ilx
+          w(i,j,k)=0.5*(w(i,j,k)+w(i,j,k+1))
+        enddo
+        enddo
+        enddo
+      endif
+!
+! interpolate tke to half-sigma levels (if necessary)
+      if(IBLT.eq.6 .and. IFTKE.eq.1)then
+        do k=1,kl
+        do j=1,jlx
+        do i=1,ilx
+          tke(i,j,k)=0.5*(tke(i,j,k)+tke(i,j,k+1))
+        enddo
+        enddo
+        enddo 
+      endif
+!
+! interpolate u and v onto cross points
+
+      if(IFU.eq.1)then
+        do k=1,kl
+        do j=1,jlx
+        do i=1,ilx
+          dum3d(i,j,k)=0.25*(u(i,j,k)+u(i+1,j,k)+u(i,j+1,k)+u(i+1,j+1,k))
+        enddo
+        enddo
+        enddo
+
+        do k=1,kl
+        do j=1,jlx
+        do i=1,ilx
+          u(i,j,k)=dum3d(i,j,k)
+        enddo
+        enddo
+        enddo
+      endif
+
+      if(IFV.eq.1)then
+        do k=1,kl
+        do j=1,jlx
+        do i=1,ilx
+          dum3d(i,j,k)=0.25*(v(i,j,k)+v(i+1,j,k)+v(i,j+1,k)+v(i+1,j+1,k))
+        enddo
+        enddo
+        enddo
+
+        do k=1,kl
+        do j=1,jlx
+        do i=1,ilx
+          v(i,j,k)=dum3d(i,j,k)
+        enddo
+        enddo
+        enddo
+      endif
+
+      deallocate(dum3d)
+
+!
+! rotate u and v into earth-relative frame
+      IF(IFMAP.EQ.1 .and. maptype.ne.3)THEN
+        if(stat_u.eq.1 .and. stat_v.eq.1)then
+          call VECT(mix,mjx,mkx,xlon,xlonc,xlatc,xn,u,v)
+        endif
+      ENDIF
+!
+! calculate wind direction
+      if(IFDIR.eq.1)then
+        if(iallo.eq.0) allocate(dir(mix,mjx,mkx))
+        if(iallo.eq.0) allocate(mv(mix,mjx,mkx))
+        call DIRCOMP(U,V,mix,mjx,mkx,DIR,MV)
+      endif
+
+      if(IFMV.eq.1.and.IFDIR.eq.0)then
+        if(iallo.eq.0) allocate(dir(mix,mjx,mkx))
+        if(iallo.eq.0) allocate(mv(mix,mjx,mkx))
+      endif
+      if(IFMV.eq.1)then
+        call DIRCOMP(U,V,mix,mjx,mkx,DIR,MV)
+      endif
+
+! calculate sea level pressure
+      if(IFPSLV.EQ.1.and. (index.eq.11.or.index.eq.5)  &
+                    .and. stat_pslv == 0 )then
+
+        DO J=1,mjx-1
+        DO I=1,mix-1
+          PSFC(I,J)=(PP(I,J,KL)+PS(I,J)+PTOP)*0.01
+        ENDDO
+        ENDDO
+
+        DO J=1,mjx-1
+        DO I=1,mix-1
+          PS(I,J)=PS(I,J)*0.01
+        ENDDO
+        ENDDO
+
+        DO K=1,mkx
+        DO J=1,mjx-1
+        DO I=1,mix-1
+          PP(I,J,K)=PP(I,J,K)*0.01
+        ENDDO
+        ENDDO
+        ENDDO
+
+        ptop=ptop*0.01
+
+        allocate(dum2da(mix,mjx))
+        allocate(dum2db(mix,mjx))
+        allocate(dum2dc(mix,mjx))
+        allocate(dum2dd(mix,mjx))
+        if(iallo.eq.0) allocate(pslv(mix,mjx))
+        call SEAPRSNH(T,TER,PS,psfc,PP,SIGMA,mix,mjx,mkx,PTOP,     &
+                      pslv,dum2da,dum2db,dum2dc,dum2dd)
+        deallocate(dum2da)
+        deallocate(dum2db)
+        deallocate(dum2dc)
+        deallocate(dum2dd)
+
+        ptop=ptop*100.
+
+        DO J=1,mjx-1
+        DO I=1,mix-1
+          PS(I,J)=PS(I,J)*100.
+        ENDDO
+        ENDDO
+
+        DO K=1,mkx
+        DO J=1,mjx-1
+        DO I=1,mix-1
+          PP(I,J,K)=PP(I,J,K)*100.
+        ENDDO
+        ENDDO
+        ENDDO
+      endif
+
+!-------------------------------------------------------------------
+!  Pressure interpolating section
+ 
+    IF(ZTYPE.eq.2 .and. (index.eq.5.or.index.eq.11))THEN
+      print *,'INTERPOLATING TO PRESSURE LEVELS!'
+
+      allocate(pk(mix,mjx,nplevs))
+      allocate(dum3d(mix,mjx,nplevs))
+
+
+      !!! pk is the key to interpolate
+      ! pk=0 means the level is below sigma levels
+      ! pk=1 means the level is above sigma levels
+      do n=1,nplevs
+        if((nread-timin+1).eq.1)plev(n)=plev(n)*100.0
+        ! print *,'  n,plev:',n,plev(n)
+        do i=1,ilx
+        do j=1,jlx
+          pk(i,j,n)=0
+          do k=1,kl
+            if(prs(i,j,k).gt.plev(n) .and. pk(i,j,n).eq.0) pk(i,j,n)=k
+          enddo
+          !if(prs(i,j,kl).lt.plev(n))pk(i,j,n)=-1
+          !if(prs(i,j,1).gt.plev(n))pk(i,j,n)=-2
+        enddo
+        enddo
+      enddo
+
+      if(ifu.eq.1) call interp(u,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifv.eq.1) call interp(v,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifw.eq.1) call interp(w,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifpp.eq.1) call lninterp(pp,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ift.eq.1) call lninterp(t,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifq.eq.1) call interp(qv,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifclw.eq.1) call interp(qc,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifrnw.eq.1) call interp(qr,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifrtnd.eq.1) call interp(rtnd,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifz.eq.1) call lninterp(z,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifh.eq.1) call lninterp(h,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(iftke.eq.1) call interp(tke,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifice.eq.1) call interp(qi,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifsnow.eq.1) call interp(qs,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifgraup.eq.1) call interp(qg,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifnci.eq.1) call interp(nci,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(iftd.eq.1) call tdlninterp(td,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifrh.eq.1) call interp(rh,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifrho.eq.1) call interp(rho,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifth.eq.1) call lninterp(theta,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifthe.eq.1) call lninterp(thetae,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifvor.eq.1) call interp(vor,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifpv.eq.1) call interp(pv,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifdbz.eq.1) call interp(dbz,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifdiv.eq.1) call interp(div,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifdir.eq.1) call interp(dir,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifmv.eq.1) call interp(mv,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(iftadv.eq.1) call interp(tadv,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+      if(ifprs.eq.1) call interp(prs,prs,pk,mix,mjx,mkx,nplevs,plev,dum3d)
+
+!Cb
+!Cb      deallocate(z)
+!Cb      deallocate(prs)
+!Cb      deallocate(psfc)
+!CB
+      deallocate(pk)
+      deallocate(dum3d)
+
+    ENDIF
+!
+!
+!CCCCCCCCCCCCCCCCCCCCCCCCC
+!
+      nwrite=nwrite+1
+      print *,'Writing to file:  nwrite=',nwrite
+    
+      nrec=nrec+1
+
+      ! Creating netCDF variables
+      ! Here is new variables has to be added
+
+      if(nrec.eq.1)then 
+        if(IFRC.eq.1) prc_old=prc
+        if(IFRN.eq.1) prls_old=prls
+        if(IFSRO.eq.1) mrros_old=mrros
+        if(IFURO.eq.1) uro_old=uro
+        IF(IFPS.EQ.1) then
+          call check( nf90_def_var(ncid, "ps", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),ps_varid) )!cambio
+          call check( nf90_put_att(ncid,ps_varid,"long_name", "Surface air pressure") )
+          call check( nf90_put_att(ncid,ps_varid,"standard_name","surface_air_pressure") )
+          call check( nf90_put_att(ncid,ps_varid,"units", "Pa") )
+          call check( nf90_put_att(ncid,ps_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,ps_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,ps_varid,"missing_value", -9999.0) )
+        endif
+        IF(IFTG.EQ.1) then
+          call check( nf90_def_var(ncid, "ts", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),tg_varid) )
+          call check( nf90_put_att(ncid,tg_varid,"long_name", "surface temperature") )
+          call check( nf90_put_att(ncid,tg_varid,"standard_name","surface_temperature") )
+          call check( nf90_put_att(ncid,tg_varid,"units", "K") )
+          call check( nf90_put_att(ncid,tg_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,tg_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,tg_varid,"missing_value", -9999.0) )
+        endif                                                                      
+        IF(IFRC.EQ.1) then
+          call check( nf90_def_var(ncid, "prc", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),prc_varid) )!cambio
+          call check( nf90_put_att(ncid,prc_varid,"long_name", "convective precipitation") )
+          call check( nf90_put_att(ncid,prc_varid,"standard_name","convective_precipitation_flux") )
+          call check( nf90_put_att(ncid,prc_varid,"units", "kg m-2 s-1") )
+          call check( nf90_put_att(ncid,prc_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,prc_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,prc_varid,"missing_value", -9999.0) )
+        endif        
+        IF(IFRN.EQ.1) then
+          call check( nf90_def_var(ncid, "prls", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),prls_varid) ) !cambio
+          call check( nf90_put_att(ncid,prls_varid,"long_name", "Stratiform precipitation flux") )
+          call check( nf90_put_att(ncid,prls_varid,"standard_name","stratiform_precipitation_flux") )
+          call check( nf90_put_att(ncid,prls_varid,"units", "kg m-2 s-1") )
+          call check( nf90_put_att(ncid,prls_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,prls_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,prls_varid,"missing_value", -9999.0) )
+        endif        
+        IF(IFPRE.EQ.1) then
+          call check( nf90_def_var(ncid, "pr", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),pre_varid) )
+          call check( nf90_put_att(ncid,pre_varid,"long_name", "precipitation") )
+          call check( nf90_put_att(ncid,pre_varid,"standard_name","precipitation_flux") )
+          call check( nf90_put_att(ncid,pre_varid,"units", "kg m-2 s-1") )
+          call check( nf90_put_att(ncid,pre_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,pre_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,pre_varid,"missing_value", -9999.0) )
+        endif        
+        IF(IFTER.EQ.1) then 
+          call check( nf90_def_var(ncid, "ter", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),ter_varid) )
+          call check( nf90_put_att(ncid,ter_varid,"long_name", "terrain") )
+          call check( nf90_put_att(ncid,ter_varid,"standard_name","sea_surface_height_above_geoid") )
+          call check( nf90_put_att(ncid,ter_varid,"units", "m") )
+          call check( nf90_put_att(ncid,ter_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,ter_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,ter_varid,"missing_value", -9999.0) )
+        endif
+       ! IF(IFXMF.EQ.1) then
+       ! IF(IFDMF.EQ.1) then
+       ! IF(IFCOR.EQ.1) then
+       ! IF(IFTR.EQ.1) then 
+       ! IF(IFXLAT.EQ.1) then 
+        IF(IFXLAT.EQ.1) then 
+          call check( nf90_def_var(ncid, "lati", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),lat_varid) )
+          call check( nf90_put_att(ncid,lat_varid,"long_name", "latitude") )
+          call check( nf90_put_att(ncid,lat_varid,"standard_name","grid_latitude") )
+          call check( nf90_put_att(ncid,lat_varid,"units", "degree") )
+          call check( nf90_put_att(ncid,lat_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,lat_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,lat_varid,"missing_value", -9999.0) )
+        endif
+        IF(IFXLON.EQ.1) then 
+          call check( nf90_def_var(ncid, "longi", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),lon_varid) )
+          call check( nf90_put_att(ncid,lon_varid,"long_name", "longitude") )
+          call check( nf90_put_att(ncid,lon_varid,"standard_name","grid_longitude") )
+          call check( nf90_put_att(ncid,lon_varid,"units", "degree") )
+          call check( nf90_put_att(ncid,lon_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,lon_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,lon_varid,"missing_value", -9999.0) )
+        endif
+       ! IF(IFXLATD.EQ.1) then 
+       ! IF(IFXLOND.EQ.1) then 
+        IF(IFLM.EQ.1) then
+          call check( nf90_def_var(ncid, "lm", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),lm_varid) )
+          call check( nf90_put_att(ncid,lm_varid,"long_name", "land mask") )
+          call check( nf90_put_att(ncid,lm_varid,"standard_name","land_binary_mask") )
+          call check( nf90_put_att(ncid,lm_varid,"units", "1") )
+          call check( nf90_put_att(ncid,lm_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,lm_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,lm_varid,"missing_value", -9999.0) )
+        endif
+        IF(IFLU.EQ.1) then
+          call check( nf90_def_var(ncid, "lu", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),lu_varid) )
+          call check( nf90_put_att(ncid,lu_varid,"long_name", "land use") )
+          call check( nf90_put_att(ncid,lu_varid,"standard_name","land_use") )
+          call check( nf90_put_att(ncid,lu_varid,"units", "1") )
+          call check( nf90_put_att(ncid,lu_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,lu_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,lu_varid,"missing_value", -9999.0) )
+        endif
+       ! IF(IFVGF.EQ.1) then
+        IF(IFSC.EQ.1) then
+          call check( nf90_def_var(ncid, "sc", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),sc_varid) )
+          call check( nf90_put_att(ncid,sc_varid,"long_name", "snow cover") )
+          call check( nf90_put_att(ncid,sc_varid,"standard_name","snow_cover") )
+          call check( nf90_put_att(ncid,sc_varid,"units", "1") )
+          call check( nf90_put_att(ncid,sc_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,sc_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,sc_varid,"missing_value", -9999.0) )
+        endif
+        IF(IFPBLH.EQ.1) then
+          call check( nf90_def_var(ncid, "pblh", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),pblh_varid) ) !cambio
+          call check( nf90_put_att(ncid,pblh_varid,"long_name", "atmosphere boundary layer thickness") )
+          call check( nf90_put_att(ncid,pblh_varid,"standard_name","atmosphere_boundary_layer_thickness") )
+          call check( nf90_put_att(ncid,pblh_varid,"units", "m") )
+          call check( nf90_put_att(ncid,pblh_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,pblh_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,pblh_varid,"missing_value", -9999.0) )
+        endif
+                                                                                      
+       ! IF(IFPBLR.EQ.1) then
+        IF(IFSHF.EQ.1) then
+          call check( nf90_def_var(ncid, "hfss", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),hfss_varid) ) !cambio
+          call check( nf90_put_att(ncid,hfss_varid,"long_name", "Surface Upward Sensible Heat Flux") )
+          call check( nf90_put_att(ncid,hfss_varid,"standard_name","surface_upward_sensible_heat_flux") )
+          call check( nf90_put_att(ncid,hfss_varid,"units", "W m-2") )
+          call check( nf90_put_att(ncid,hfss_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,hfss_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,hfss_varid,"missing_value", -9999.0) )
+        endif
+        IF(IFLHF.EQ.1) then
+          call check( nf90_def_var(ncid, "hfls", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),hfls_varid) ) !cambio
+          call check( nf90_put_att(ncid,hfls_varid,"long_name", "Surface Upward Latent Heat Flux") )
+          call check( nf90_put_att(ncid,hfls_varid,"standard_name","surface_upward_latent_heat_flux") )
+          call check( nf90_put_att(ncid,hfls_varid,"units", "W m-2") )
+          call check( nf90_put_att(ncid,hfls_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,hfls_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,hfls_varid,"missing_value", -9999.0) )
+        endif
+        IF(IFGHF.EQ.1) then
+          call check( nf90_def_var(ncid, "hfso", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),hfso_varid) ) !cambio
+          call check( nf90_put_att(ncid,hfso_varid,"long_name", "downward heat flux in soil") )
+          call check( nf90_put_att(ncid,hfso_varid,"standard_name","downward_heat_flux_in_soil") )
+          call check( nf90_put_att(ncid,hfso_varid,"units", "W m-2") )
+          call check( nf90_put_att(ncid,hfso_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,hfso_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,hfso_varid,"missing_value", -9999.0) )
+        endif
+       ! IF(IFUST.EQ.1) then
+        IF(IFSWD.EQ.1) then
+          call check( nf90_def_var(ncid, "rsds", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),rsds_varid) ) !cambio
+          call check( nf90_put_att(ncid,rsds_varid,"long_name", "Surface downwelling shortwave radiation") )
+          call check( nf90_put_att(ncid,rsds_varid,"standard_name","surface_downwelling_shortwave_flux_in_air") )
+          call check( nf90_put_att(ncid,rsds_varid,"units", "W m-2") )
+          call check( nf90_put_att(ncid,rsds_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,rsds_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,rsds_varid,"missing_value", -9999.0) )
+        endif
+                                                                                      
+       IF(IFLWD.EQ.1) then
+          call check( nf90_def_var(ncid, "rlds", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),rlds_varid) ) !cambio
+          call check( nf90_put_att(ncid,rlds_varid,"long_name", "Surface downwelling longwave radiation") )
+          call check( nf90_put_att(ncid,rlds_varid,"standard_name","surface_downwelling_longwave_flux_in_air") )
+          call check( nf90_put_att(ncid,rlds_varid,"units", "W m-2") )
+          call check( nf90_put_att(ncid,rlds_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,rlds_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,rlds_varid,"missing_value", -9999.0) )
+       endif                                                                          
+       
+       IF(IFSWO.EQ.1) then
+          call check( nf90_def_var(ncid, "swo", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),swo_varid) ) !ver lo del nombre de la variable
+          call check( nf90_put_att(ncid,swo_varid,"long_name", "Top outgoing shortwave flux") )
+          call check( nf90_put_att(ncid,swo_varid,"standard_name","toa_outgoing_shortwave_flux") )
+          call check( nf90_put_att(ncid,swo_varid,"units", "W m-2") )
+          call check( nf90_put_att(ncid,swo_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,swo_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,swo_varid,"missing_value", -9999.0) )
+       endif
+                                                                             
+        IF(IFLWO.EQ.1) then
+          call check( nf90_def_var(ncid, "lwo", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),lwo_varid) ) !ver lo del nombre de la variable
+          call check( nf90_put_att(ncid,lwo_varid,"long_name", "Top outgoing longwave flux") )
+          call check( nf90_put_att(ncid,lwo_varid,"standard_name","toa_outgoing_longwave_flux") )
+          call check( nf90_put_att(ncid,lwo_varid,"units", "W m-2") )
+          call check( nf90_put_att(ncid,lwo_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,lwo_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,lwo_varid,"missing_value", -9999.0) )
+        endif  
+                                                                              
+        IF(IFSST.EQ.1) then
+          call check( nf90_def_var(ncid, "sst", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),sst_varid) )
+          call check( nf90_put_att(ncid,sst_varid,"long_name", "sea surface temperature") )
+          call check( nf90_put_att(ncid,sst_varid,"standard_name","sea_surface_temperature") )
+          call check( nf90_put_att(ncid,sst_varid,"units", "K") )
+          call check( nf90_put_att(ncid,sst_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,sst_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,sst_varid,"missing_value", -9999.0) )
+        endif
+        IF(IFSEAICE.EQ.1) then
+          call check( nf90_def_var(ncid, "ssi", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),seaice_varid) ) !cambio
+          call check( nf90_put_att(ncid,seaice_varid,"long_name", "Sea Surface Ice") )
+          call check( nf90_put_att(ncid,seaice_varid,"standard_name","sea_ice") )
+          call check( nf90_put_att(ncid,seaice_varid,"units", "1") )
+          call check( nf90_put_att(ncid,seaice_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,seaice_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,seaice_varid,"missing_value", -9999.0) )
+        endif        
+       ! IF(IFMAV.EQ.1) then
+        IF(IFST1.EQ.1) then
+          call check( nf90_def_var(ncid, "st1", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),st1_varid) ) !  le he quitado lo de layer1
+          call check( nf90_put_att(ncid,st1_varid,"long_name", "Soil temperature in layer 1") )
+          call check( nf90_put_att(ncid,st1_varid,"standard_name","soil_temperature") )
+          call check( nf90_put_att(ncid,st1_varid,"units", "K") )
+          call check( nf90_put_att(ncid,st1_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,st1_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,st1_varid,"missing_value", -9999.0) )
+        endif
+        IF(IFST2.EQ.1) then
+          call check( nf90_def_var(ncid, "st2", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),st2_varid) ) !  le he quitado lo de layer1
+          call check( nf90_put_att(ncid,st2_varid,"long_name", "Soil temperature in layer 2") )
+          call check( nf90_put_att(ncid,st2_varid,"standard_name","soil_temperature") )
+          call check( nf90_put_att(ncid,st2_varid,"units", "K") )
+          call check( nf90_put_att(ncid,st2_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,st2_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,st2_varid,"missing_value", -9999.0) )
+        endif
+        IF(IFST3.EQ.1) then
+          call check( nf90_def_var(ncid, "st3", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),st3_varid) ) !  le he quitado lo de layer1
+          call check( nf90_put_att(ncid,st3_varid,"long_name", "Soil temperature in layer 3") )
+          call check( nf90_put_att(ncid,st3_varid,"standard_name","soil_temperature") )
+          call check( nf90_put_att(ncid,st3_varid,"units", "K") )
+          call check( nf90_put_att(ncid,st3_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,st3_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,st3_varid,"missing_value", -9999.0) )
+        endif
+        IF(IFST4.EQ.1) then
+          call check( nf90_def_var(ncid, "st4", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),st4_varid) ) !  le he quitado lo de layer1
+          call check( nf90_put_att(ncid,st4_varid,"long_name", "Soil temperature in layer 4") )
+          call check( nf90_put_att(ncid,st4_varid,"standard_name","soil_temperature") )
+          call check( nf90_put_att(ncid,st4_varid,"units", "K") )
+          call check( nf90_put_att(ncid,st4_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,st4_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,st4_varid,"missing_value", -9999.0) )
+        endif
+
+        IF(IFSM1.EQ.1) then
+          call check( nf90_def_var(ncid, "mrsos1", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),mrsos1_varid) )!cambio
+          call check( nf90_put_att(ncid,mrsos1_varid,"long_name", "Moisture content of soil layer 1") )
+          call check( nf90_put_att(ncid,mrsos1_varid,"standard_name","moisture_content_of_soil_layer") )
+          call check( nf90_put_att(ncid,mrsos1_varid,"units", "m3 m-3") )
+          call check( nf90_put_att(ncid,mrsos1_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,mrsos1_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,mrsos1_varid,"missing_value", -9999.0) )
+        endif  
+                                                                              
+        IF(IFSM2.EQ.1) then
+          call check( nf90_def_var(ncid, "mrsos2", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),mrsos2_varid) )!cambio
+          call check( nf90_put_att(ncid,mrsos2_varid,"long_name", "Moisture content of soil layer 2") )
+          call check( nf90_put_att(ncid,mrsos2_varid,"standard_name","moisture_content_of_soil_layer") )
+          call check( nf90_put_att(ncid,mrsos2_varid,"units", "m3 m-3") )
+          call check( nf90_put_att(ncid,mrsos2_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,mrsos2_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,mrsos2_varid,"missing_value", -9999.0) )
+        endif  
+        IF(IFSM3.EQ.1) then
+          call check( nf90_def_var(ncid, "mrsos3", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),mrsos3_varid) )!cambio
+          call check( nf90_put_att(ncid,mrsos3_varid,"long_name", "Moisture content of soil layer 3") )
+          call check( nf90_put_att(ncid,mrsos3_varid,"standard_name","moisture_content_of_soil_layer") )
+          call check( nf90_put_att(ncid,mrsos3_varid,"units", "m3 m-3") )
+          call check( nf90_put_att(ncid,mrsos3_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,mrsos3_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,mrsos3_varid,"missing_value", -9999.0) )
+        endif  
+        IF(IFSM4.EQ.1) then
+          call check( nf90_def_var(ncid, "mrsos4", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),mrsos4_varid) )!cambio
+          call check( nf90_put_att(ncid,mrsos4_varid,"long_name", "Moisture content of soil layer 4") )
+          call check( nf90_put_att(ncid,mrsos4_varid,"standard_name","moisture_content_of_soil_layer") )
+          call check( nf90_put_att(ncid,mrsos4_varid,"units", "m3 m-3") )
+          call check( nf90_put_att(ncid,mrsos4_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,mrsos4_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,mrsos4_varid,"missing_value", -9999.0) )
+        endif  
+       ! IF(IFSM2.EQ.1) then
+       ! IF(IFSM3.EQ.1) then 
+       ! IF(IFSM4.EQ.1) then 
+       ! IF(IFSW1.EQ.1) then 
+       ! IF(IFSW2.EQ.1) then
+       ! IF(IFSW3.EQ.1) then
+       ! IF(IFSW4.EQ.1) then
+       ! IF(IFCAN.EQ.1) then
+       ! IF(IFSNH.EQ.1) then
+       ! IF(IFSND.EQ.1) then
+        IF(IFWSD.EQ.1) then
+          call check( nf90_def_var(ncid, "wsd", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),wsd_varid) ) 
+          call check( nf90_put_att(ncid,wsd_varid,"long_name", "water equivalent snow depth") )
+          call check( nf90_put_att(ncid,wsd_varid,"standard_name","liquid_water_content_of_surface_snow") )
+          call check( nf90_put_att(ncid,wsd_varid,"units", "Kg m-2") )
+          call check( nf90_put_att(ncid,wsd_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,wsd_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,wsd_varid,"missing_value", -9999.0) )
+        endif
+       ! IF(IFSSI.EQ.1) then
+       ! IF(IFSIF.EQ.1) then
+        IF(IFSRO.EQ.1) then
+          call check( nf90_def_var(ncid, "mrros", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),mrros_varid) ) !cambio
+          call check( nf90_put_att(ncid,mrros_varid,"long_name", "surface runoff") )
+          call check( nf90_put_att(ncid,mrros_varid,"standard_name","surface_runoff_flux") )
+          call check( nf90_put_att(ncid,mrros_varid,"units", "kg m-2 s-1") )
+          call check( nf90_put_att(ncid,mrros_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,mrros_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,mrros_varid,"missing_value", -9999.0) )
+        endif
+                                                                                        
+        IF(IFURO.EQ.1) then
+          call check( nf90_def_var(ncid, "uro", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),uro_varid) ) !cambio
+          call check( nf90_put_att(ncid,uro_varid,"long_name", "underground runoff") )
+          call check( nf90_put_att(ncid,uro_varid,"standard_name","subsurface_runoff_amount") )
+          call check( nf90_put_att(ncid,uro_varid,"units", "kg m-2 s-1") )
+          call check( nf90_put_att(ncid,uro_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,uro_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,uro_varid,"missing_value", -9999.0) )
+        endif
+        IF(IFT2M.EQ.1) then
+          call check( nf90_def_var(ncid, "tas", NF90_REAL,(/x_dimid, y_dimid, height_dimid, t_dimid /),t2m_varid) ) !cambio
+          call check( nf90_put_att(ncid,t2m_varid,"long_name", "Near-surface air temperature") )
+          call check( nf90_put_att(ncid,t2m_varid,"standard_name","air_temperature") )
+          call check( nf90_put_att(ncid,t2m_varid,"units", "K") )
+          call check( nf90_put_att(ncid,t2m_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,t2m_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,t2m_varid,"missing_value", -9999.0) )
+        endif        
+        IF(IFQ2M.EQ.1) then
+          call check( nf90_def_var(ncid, "huss", NF90_REAL,(/x_dimid, y_dimid, height_dimid, t_dimid /),huss_varid) ) !cambio
+          call check( nf90_put_att(ncid,huss_varid,"long_name", "Near-surface specific humidity") )
+          call check( nf90_put_att(ncid,huss_varid,"standard_name","specific_humidity") )
+          call check( nf90_put_att(ncid,huss_varid,"units", "kg kg-1") )
+          call check( nf90_put_att(ncid,huss_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,huss_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,huss_varid,"missing_value", -9999.0) )
+        endif  
+          
+        IF(IFUAS.EQ.1) then
+           call check( nf90_def_var(ncid, "uas", NF90_REAL,(/x_dimid, y_dimid,  heightv_dimid, t_dimid /),uas_varid) ) !cambio
+           call check( nf90_put_att(ncid,uas_varid,"long_name", "Eastward near-surface wind velocity") )
+           call check( nf90_put_att(ncid,uas_varid,"standard_name","eastward_wind") )
+           call check( nf90_put_att(ncid,uas_varid,"units", "m s-1") )
+           call check( nf90_put_att(ncid,uas_varid,"coordinates", "lat lon") )
+           call check( nf90_put_att(ncid,uas_varid,"grid_mapping", "Lambert_Conformal") )
+           call check( nf90_put_att(ncid,uas_varid,"missing_value", -9999.0) )
+        endif
+        IF(IFVAS.EQ.1) then
+           call check( nf90_def_var(ncid, "vas", NF90_REAL,(/x_dimid, y_dimid,  heightv_dimid, t_dimid /),vas_varid) ) !cambio
+           call check( nf90_put_att(ncid,vas_varid,"long_name", "Northward near-surface wind velocity") )
+           call check( nf90_put_att(ncid,vas_varid,"standard_name","northward_wind") )
+           call check( nf90_put_att(ncid,vas_varid,"units", "m s-1") )
+           call check( nf90_put_att(ncid,vas_varid,"coordinates", "lat lon") )
+           call check( nf90_put_att(ncid,vas_varid,"grid_mapping", "Lambert_Conformal") )
+           call check( nf90_put_att(ncid,vas_varid,"missing_value", -9999.0) )
+        endif
+                                                                                             
+        ! IF(IFALB.EQ.1) call writeout(ztype,nplevs,plev,ifecha,alb,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,252)
+        ! IF(IFABB.EQ.1) call writeout(ztype,nplevs,plev,ifecha,abb,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,253)
+        ! IF(IFASB.EQ.1) call writeout(ztype,nplevs,plev,ifecha,asb,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,254)
+        IF(IFPSLV.EQ.1) then 
+          call check( nf90_def_var(ncid, "psl", NF90_REAL,(/x_dimid, y_dimid, t_dimid /),psl_varid) ) !cambio
+          call check( nf90_put_att(ncid,psl_varid,"long_name", "Sea level pressure") )
+          call check( nf90_put_att(ncid,psl_varid,"standard_name","air_pressure_at_sea_level") )
+          call check( nf90_put_att(ncid,psl_varid,"units", "Pa") )
+          call check( nf90_put_att(ncid,psl_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,psl_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,psl_varid,"missing_value", -9999.0) )
+        endif
+        IF(IFMV10.EQ.1)then
+          call check( nf90_def_var(ncid, "mv10", NF90_REAL,(/x_dimid, y_dimid, heightv_dimid, t_dimid/),mv10_varid) ) !cambio
+          call check( nf90_put_att(ncid,mv10_varid,"long_name", "10m wind speed") )
+          call check( nf90_put_att(ncid,mv10_varid,"standard_name","wind_speed") )
+          call check( nf90_put_att(ncid,mv10_varid,"units", "m s-1") )
+          call check( nf90_put_att(ncid,mv10_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,mv10_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,mv10_varid,"missing_value", -9999.0) )
+        endif
+        ! IF(IFDIR10.EQ.1) call writeout(ztype,nplevs,plev,ifecha,dir10,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,265)
+        ! IF(IFCREF.EQ.1) call writeout(ztype,nplevs,plev,ifecha,cref,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,256)
+        ! IF(IFICLW.EQ.1) call writeout(ztype,nplevs,plev,ifecha,iclw,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,257)
+        ! IF(IFIRNW.EQ.1) call writeout(ztype,nplevs,plev,ifecha,irnw,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,258)
+        ! IF(IFPWAT.EQ.1) call writeout(ztype,nplevs,plev,ifecha,pwat,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,259)
+         IF(IFCLFR.EQ.1)then
+            call check( nf90_def_var(ncid, "clt", NF90_REAL,(/x_dimid, y_dimid, t_dimid/),clt_varid) )!cambio
+            call check( nf90_put_att(ncid,clt_varid,"long_name", "Total cloud fraction") )
+            call check( nf90_put_att(ncid,clt_varid,"standard_name","cloud_area_fraction") )
+            call check( nf90_put_att(ncid,clt_varid,"units", "1") )
+            call check( nf90_put_att(ncid,clt_varid,"coordinates", "lat lon") )
+            call check( nf90_put_att(ncid,clt_varid,"grid_mapping", "Lambert_Conformal") )
+            call check( nf90_put_att(ncid,clt_varid,"missing_value", -9999.0) )
+         endif
+                                                                                       
+        ! ENDIF
+      
+!
+!  3d variables
+!
+        IF(IFU.EQ.1) then
+          if(ztype.eq.1)then
+            call check( nf90_def_var(ncid, "ua", NF90_REAL,(/ x_dimid, y_dimid, z_dimid, t_dimid /),ua_varid) )
+           else
+            call check( nf90_def_var(ncid, "ua", NF90_REAL,(/ x_dimid, y_dimid, lv_dimid, t_dimid /),ua_varid) )
+           endif
+           call check( nf90_put_att(ncid,ua_varid,"long_name", "eastward wind") )
+           call check( nf90_put_att(ncid,ua_varid,"standard_name", "eastward_wind") )
+           call check( nf90_put_att(ncid,ua_varid,"units", "m s-1") )
+           call check( nf90_put_att(ncid,ua_varid,"coordinates", "lat lon") )
+           call check( nf90_put_att(ncid,ua_varid,"grid_mapping", "Lambert_Conformal") )
+           call check( nf90_put_att(ncid,ua_varid,"missing_value", -9999.0) )
+        endif
+                                                                                                                                           
+        IF(IFV.EQ.1) then
+          if(ztype.eq.1)then
+             call check( nf90_def_var(ncid, "va", NF90_REAL,(/ x_dimid, y_dimid, z_dimid, t_dimid /),va_varid) )
+            else
+             call check( nf90_def_var(ncid, "va", NF90_REAL,(/ x_dimid, y_dimid, lv_dimid, t_dimid /),va_varid) )
+            endif
+          call check( nf90_put_att(ncid,va_varid,"long_name", "northward wind") )
+          call check( nf90_put_att(ncid,va_varid,"standard_name", "northward_wind") )
+          call check( nf90_put_att(ncid,va_varid,"units", "m s-1") )
+          call check( nf90_put_att(ncid,va_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,va_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,va_varid,"missing_value", -9999.0) )
+         endif
+
+        IF(IFW.EQ.1) then
+          if(ztype.eq.1)then
+             call check( nf90_def_var(ncid, "wa", NF90_REAL,(/ x_dimid, y_dimid, z_dimid, t_dimid /),wa_varid) )
+            else
+             call check( nf90_def_var(ncid, "wa", NF90_REAL,(/ x_dimid, y_dimid, lv_dimid, t_dimid /),wa_varid) )
+            endif
+          call check( nf90_put_att(ncid,wa_varid,"long_name", "vertical wind") )
+          call check( nf90_put_att(ncid,wa_varid,"standard_name", "vertical_wind") )
+          call check( nf90_put_att(ncid,wa_varid,"units", "m s-1") )
+          call check( nf90_put_att(ncid,wa_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,wa_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,wa_varid,"missing_value", -9999.0) )
+         endif
+          ! IF(IFPP.EQ.1) call writeout(ztype,nplevs,plev,ifecha,pp,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,303)
+        IF(IFT.EQ.1) then
+          if(ztype.eq.1)then
+            call check( nf90_def_var(ncid, "ta", NF90_REAL,(/ x_dimid, y_dimid, z_dimid, t_dimid /),ta_varid) )
+          else
+            call check( nf90_def_var(ncid, "ta", NF90_REAL,(/ x_dimid, y_dimid, lv_dimid, t_dimid /),ta_varid) )
+          endif
+          call check( nf90_put_att(ncid,ta_varid,"long_name", "3D temperature") )
+          call check( nf90_put_att(ncid,ta_varid,"standard_name", "air_temperature") )
+          call check( nf90_put_att(ncid,ta_varid,"units", "K") )
+          call check( nf90_put_att(ncid,ta_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,ta_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,ta_varid,"missing_value", -9999.0) )
+        endif        
+         IF(IFQ.EQ.1) then 
+           !if(ztype.eq.1)then
+           !  call check( nf90_def_var(ncid, "q", NF90_REAL,(/ x_dimid, y_dimid, z_dimid, t_dimid /),q_varid) )
+           !else
+           !  call check( nf90_def_var(ncid, "q", NF90_REAL,(/ x_dimid, y_dimid, lv_dimid, t_dimid /),q_varid) ) !ver despues
+           !endif
+           !  call check( nf90_put_att(ncid,q_varid,"long_name", "Mixing ratio") )
+           !  call check( nf90_put_att(ncid,q_varid,"standard_name", "mixing_ratio") )
+           !  call check( nf90_put_att(ncid,q_varid,"units", "kg kg-1") )
+           !  call check( nf90_put_att(ncid,q_varid,"coordinates", "lat lon") )
+           !  call check( nf90_put_att(ncid,q_varid,"grid_mapping", "Lambert_Conformal") )
+           !  call check( nf90_put_att(ncid,q_varid,"missing_value", -9999.0) )
+           
+          if(ztype.eq.1)then
+             call check( nf90_def_var(ncid, "hus", NF90_REAL,(/ x_dimid, y_dimid, z_dimid, t_dimid /),hus_varid) )
+          else
+             call check( nf90_def_var(ncid, "hus", NF90_REAL,(/ x_dimid, y_dimid, lv_dimid, t_dimid /),hus_varid) )
+           endif
+           call check( nf90_put_att(ncid,hus_varid,"long_name", "Specific Humidity") )
+           call check( nf90_put_att(ncid,hus_varid,"standard_name", "specific_humidity") )
+           call check( nf90_put_att(ncid,hus_varid,"units", "kg kg-1") )
+           call check( nf90_put_att(ncid,hus_varid,"coordinates", "lat lon") )
+           call check( nf90_put_att(ncid,hus_varid,"grid_mapping", "Lambert_Conformal") )
+           call check( nf90_put_att(ncid,hus_varid,"missing_value", 1.0001) )
+         endif
+                                                                                                                          
+
+         
+        ! IF(IFCLW.EQ.1) call writeout(ztype,nplevs,plev,ifecha,qc,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,306)
+        ! IF(IFRNW.EQ.1) call writeout(ztype,nplevs,plev,ifecha,qr,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,307)
+        ! IF(IFRTND.EQ.1) call writeout(ztype,nplevs,plev,ifecha,rtnd,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,308)
+        IF(IFZ.EQ.1) then
+          if(ztype.eq.1)then
+           call check( nf90_def_var(ncid, "z", NF90_REAL,(/ x_dimid, y_dimid, z_dimid, t_dimid /),z_varid) ) !cambio
+          else
+           call check( nf90_def_var(ncid, "z", NF90_REAL,(/ x_dimid, y_dimid, lv_dimid, t_dimid /),z_varid) )
+          endif
+          call check( nf90_put_att(ncid,z_varid,"long_name", "signa levels height") )
+          call check( nf90_put_att(ncid,z_varid,"standard_name", "sigma_height") )
+          call check( nf90_put_att(ncid,z_varid,"units", "m") )
+          call check( nf90_put_att(ncid,z_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,z_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,z_varid,"missing_value", -9999.0) )
+        endif
+        ! IF(IFTKE.EQ.1) call writeout(ztype,nplevs,plev,ifecha,tke,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,310)
+        ! IF(IFICE.EQ.1) call writeout(ztype,nplevs,plev,ifecha,qi,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,311)
+        ! IF(IFSNOW.EQ.1) call writeout(ztype,nplevs,plev,ifecha,qs,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,312)
+        ! IF(IFGRAUP.EQ.1) call writeout(ztype,nplevs,plev,ifecha,qg,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,313)
+        ! IF(IFNCI.EQ.1) call writeout(ztype,nplevs,plev,ifecha,nci,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,314)
+        IF(IFTD.EQ.1)then
+          if(ztype.eq.1)then
+           call check( nf90_def_var(ncid, "td", NF90_REAL,(/ x_dimid, y_dimid, z_dimid, t_dimid /),td_varid) ) !cambio
+          else
+           call check( nf90_def_var(ncid, "td", NF90_REAL,(/ x_dimid, y_dimid, lv_dimid, t_dimid /),td_varid) )
+          endif
+          call check( nf90_put_att(ncid,td_varid,"long_name", "3D dew_point temperature") )
+          call check( nf90_put_att(ncid,td_varid,"standard_name", "dew_point_temperature") )
+          call check( nf90_put_att(ncid,td_varid,"units", "K") )
+          call check( nf90_put_att(ncid,td_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,td_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,td_varid,"missing_value", -9999.0) )
+        endif
+                                                                                                                                  
+        IF(IFRH.EQ.1)then
+          if(ztype.eq.1)then
+            call check( nf90_def_var(ncid, "hur", NF90_REAL, (/ x_dimid,y_dimid,z_dimid,t_dimid /),rh_varid) )
+          else
+            call check( nf90_def_var(ncid, "hur", NF90_REAL, (/ x_dimid,y_dimid,lv_dimid,t_dimid /),rh_varid) )
+          endif
+          call check( nf90_put_att(ncid,rh_varid,"long_name", "Relative Humidity") )
+          call check( nf90_put_att(ncid,rh_varid,"standard_name","relative_humidity") )
+          call check( nf90_put_att(ncid,rh_varid,"units", "1") )
+          call check( nf90_put_att(ncid,rh_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,rh_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,rh_varid,"missing_value", -9999.0) )
+        endif
+        ! IF(IFRHO.EQ.1) call writeout(ztype,nplevs,plev,ifecha,rho,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,327)
+        ! IF(IFTH.EQ.1) call writeout(ztype,nplevs,plev,ifecha,theta,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,317)
+        ! IF(IFTHE.EQ.1) call writeout(ztype,nplevs,plev,ifecha,thetae,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,318)
+        IF(IFPRS.EQ.1) then
+          if(ztype.eq.1)then
+            call check( nf90_def_var(ncid, "prs", NF90_REAL, (/ x_dimid,y_dimid,z_dimid,t_dimid /),prs_varid) )
+          else
+            call check( nf90_def_var(ncid, "prs", NF90_REAL, (/ x_dimid,y_dimid,lv_dimid,t_dimid /),prs_varid) )
+          endif
+          call check( nf90_put_att(ncid,prs_varid,"long_name", "Pressure") )
+          call check( nf90_put_att(ncid,prs_varid,"standard_name","pressure") )
+          call check( nf90_put_att(ncid,prs_varid,"units", "Pa") )
+          call check( nf90_put_att(ncid,prs_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,prs_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,prs_varid,"missing_value", -9999.0) )
+        endif
+        ! IF(IFVOR.EQ.1) call writeout(ztype,nplevs,plev,ifecha,vor,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,320)
+        ! IF(IFPV.EQ.1) call writeout(ztype,nplevs,plev,ifecha,pv,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,321)
+        ! IF(IFDIV.EQ.1) call writeout(ztype,nplevs,plev,ifecha,div,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,322)
+        ! IF(IFDIR.EQ.1) call writeout(ztype,nplevs,plev,ifecha,dir,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,323)
+        ! IF(IFMV.EQ.1) call writeout(ztype,nplevs,plev,ifecha,mv,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,328)
+        ! IF(IFTADV.EQ.1) call writeout(ztype,nplevs,plev,ifecha,tadv,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,324)
+        ! IF(IFDBZ.EQ.1) call writeout(ztype,nplevs,plev,ifecha,dbz,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,325)
+        IF(IFH.EQ.1) then 
+          if(ztype.eq.1)then
+            call check( nf90_def_var(ncid, "zg", NF90_REAL, (/ x_dimid,y_dimid,z_dimid,t_dimid /),zg_varid) )
+          else
+            call check( nf90_def_var(ncid, "zg", NF90_REAL, (/ x_dimid,y_dimid,lv_dimid,t_dimid /),zg_varid) )
+          endif
+          call check( nf90_put_att(ncid,zg_varid,"long_name", "geopotential height") )
+          call check( nf90_put_att(ncid,zg_varid,"standard_name","geopotential_height") )
+          call check( nf90_put_att(ncid,zg_varid,"units", "m") )
+          call check( nf90_put_att(ncid,zg_varid,"coordinates", "lat lon") )
+          call check( nf90_put_att(ncid,zg_varid,"grid_mapping", "Lambert_Conformal") )
+          call check( nf90_put_att(ncid,zg_varid,"missing_value", -9999.0) )
+        endif
+                                                                                                                
+          call check( nf90_enddef(ncid) )
+          if(ztype.eq.2)call check( nf90_put_var(ncid, lv_varid, plev, start = (/1/), count = (/nplevs/)))
+            call check( nf90_put_var(ncid, xlon_varid, transpose(xlon(1:ilx,1:jlx)), start =(/1,1/),count = (/jlx,ilx/)))
+            call check( nf90_put_var(ncid, xlat_varid, transpose(xlat(1:ilx,1:jlx)), start =(/1,1/),count = (/jlx,ilx/)))
+            call check( nf90_put_var(ncid, height_varid, (/2/), start =(/1/),count=(/1/)))
+            call check( nf90_put_var(ncid, heightv_varid, (/10/), start =(/1/),count = (/1/)))
+        endif
+
+
+  ! Saving time step and writing out varibles in netCDF file
+        call xhour(iy,imon,id,ih,imin,xhours) !,imin,xhours)
+        call check( nf90_put_var(ncid, time_varid, (/xhours/), start = (/nrec/), count = (/1/)))
+
+!
+!  2d variables
+!
+        IF(IFPS.EQ.1) call check(nf90_put_var(ncid,ps_varid,transpose(ps(1:ilx,1:jlx)),start=(/1,1,nrec/),count=(/ jlx, ilx, 1/)))
+        IF(IFTG.EQ.1) call check(nf90_put_var(ncid,tg_varid,transpose(tg(1:ilx,1:jlx)),start=(/1,1,nrec/),count=(/ jlx, ilx, 1/)))
+        IF(IFRC.EQ.1)then
+          dummy2d=transpose(prc-prc_old)*10/bhr(4,12)/60
+           call check( nf90_put_var(ncid,prc_varid,dummy2d(1:jlx,1:ilx), start = (/1,1,nrec/),count=(/ jlx, ilx,1/)) )
+        endif
+        IF(IFRN.EQ.1)then
+          dummy2d=transpose(prls-prls_old)*10/bhr(4,12)/60
+          call check( nf90_put_var(ncid,prls_varid,dummy2d(1:jlx,1:ilx), start = (/1,1,nrec/),count=(/ jlx, ilx,1/)) )
+        endif
+        IF(IFPRE.EQ.1)then
+          dummy2d=transpose(prls-prls_old+prc-prc_old)*10/bhr(4,12)/60
+          call check( nf90_put_var(ncid,pre_varid,dummy2d(1:jlx,1:ilx), start = (/1,1,nrec/),count=(/ jlx, ilx,1/)) )
+        endif
+
+
+        IF(IFTER.EQ.1) call check( nf90_put_var(ncid,ter_varid,transpose(ter(1:ilx,1:jlx)),start=(/1,1,nrec/),count=(/jlx,ilx,1/)))
+       ! IF(IFXMF.EQ.1) call writeout(ztype,nplevs,plev,ifecha,xmf,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,205)
+       ! IF(IFDMF.EQ.1) call writeout(ztype,nplevs,plev,ifecha,dmf,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,206)
+       ! IF(IFCOR.EQ.1) call writeout(ztype,nplevs,plev,ifecha,cor,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,207)
+       ! IF(IFTR.EQ.1) call writeout(ztype,nplevs,plev,ifecha,tr,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,208)
+        IF(IFXLAT.EQ.1) call &
+        check(nf90_put_var(ncid,lat_varid,transpose(xlat(1:ilx,1:jlx)),start=(/1,1,nrec/),count=(/jlx, ilx,1/)))
+        IF(IFXLON.EQ.1) call &
+        check(nf90_put_var(ncid,lon_varid,transpose(xlon(1:ilx,1:jlx)),start = (/1,1,nrec/),count=(/ jlx, ilx, 1/)) )
+       ! IF(IFXLATD.EQ.1) 
+       ! IF(IFXLOND.EQ.1) 
+        IF(IFLM.EQ.1) call check( nf90_put_var(ncid,lm_varid,transpose(lm(1:ilx,1:jlx)), start = (/1,1,nrec/),count=(/ jlx, ilx, 1/)) )
+        IF(IFLU.EQ.1) call check( nf90_put_var(ncid,lu_varid,transpose(lu(1:ilx,1:jlx)), start = (/1,1,nrec/),count=(/ jlx, ilx, 1/)) )
+       ! IF(IFVGF.EQ.1) call writeout(ztype,nplevs,plev,ifecha,vgf,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,212)
+        IF(IFSC.EQ.1) call check( nf90_put_var(ncid,sc_varid,transpose(sc(1:ilx,1:jlx)), start = (/1,1,nrec/),count=(/ jlx, ilx, 1/)) )
+        IF(IFPBLH.EQ.1) call check( nf90_put_var(ncid,pblh_varid,transpose(pblh(1:ilx,1:jlx)), start = (/1,1,nrec/),count=(/ jlx, ilx, 1/)) )
+       ! IF(IFPBLR.EQ.1) call writeout(ztype,nplevs,plev,ifecha,pblr,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,215)
+        IF(IFSHF.EQ.1) call check( nf90_put_var(ncid,hfss_varid,transpose(shf(1:ilx,1:jlx)), start = (/1,1,nrec/),count=(/ jlx, ilx, 1/)) )
+        IF(IFLHF.EQ.1) call check( nf90_put_var(ncid,hfls_varid,transpose(lhf(1:ilx,1:jlx)), start = (/1,1,nrec/),count=(/ jlx, ilx, 1/)) )
+        IF(IFGHF.EQ.1) call check( nf90_put_var(ncid,hfso_varid,transpose(ghf(1:ilx,1:jlx)), start = (/1,1,nrec/),count=(/ jlx, ilx, 1/)) )
+       ! IF(IFUST.EQ.1) call writeout(ztype,nplevs,plev,ifecha,ust,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,219)
+        IF(IFSWD.EQ.1) call check( nf90_put_var(ncid,rsds_varid,transpose(swd(1:ilx,1:jlx)), start = (/1,1,nrec/),count=(/ jlx, ilx, 1/)) )
+        IF(IFLWD.EQ.1) call check( nf90_put_var(ncid,rlds_varid,transpose(lwd(1:ilx,1:jlx)), start = (/1,1,nrec/),count=(/ jlx, ilx, 1/)) )
+        IF(IFSWO.EQ.1) call check( nf90_put_var(ncid,swo_varid,transpose(swo(1:ilx,1:jlx)), start = (/1,1,nrec/),count=(/ jlx, ilx, 1/)) )
+        IF(IFLWO.EQ.1) call check( nf90_put_var(ncid,lwo_varid,transpose(lwo(1:ilx,1:jlx)), start = (/1,1,nrec/),count=(/ jlx, ilx, 1/)) ) 
+        IF(IFSST.EQ.1) call check( nf90_put_var(ncid,sst_varid,transpose(sst(1:ilx,1:jlx)), start = (/1,1,nrec/),count=(/ jlx, ilx, 1/)) )
+        IF(IFSEAICE.EQ.1) call check( nf90_put_var(ncid,seaice_varid,transpose(ssi(1:ilx,1:jlx)), start = (/1,1,nrec/),count=(/ jlx, ilx, 1/)) )
+        
+       ! IF(IFMAV.EQ.1) call writeout(ztype,nplevs,plev,ifecha,mav,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,225)
+        IF(IFST1.EQ.1) call check( nf90_put_var(ncid,st1_varid,transpose(st1(1:ilx,1:jlx)), start = (/1,1,nrec/),count=(/ jlx, ilx, 1/)) ) 
+        IF(IFST2.EQ.1) call check( nf90_put_var(ncid,st2_varid,transpose(st2(1:ilx,1:jlx)), start = (/1,1,nrec/),count=(/ jlx, ilx, 1/)) ) 
+        IF(IFST3.EQ.1) call check( nf90_put_var(ncid,st3_varid,transpose(st3(1:ilx,1:jlx)), start = (/1,1,nrec/),count=(/ jlx, ilx, 1/)) ) 
+        IF(IFST4.EQ.1) call check( nf90_put_var(ncid,st4_varid,transpose(st4(1:ilx,1:jlx)), start = (/1,1,nrec/),count=(/ jlx, ilx, 1/)) ) 
+        IF(IFSM1.EQ.1) then
+           dummy2d=transpose(sm1)*100
+           call check ( nf90_put_var(ncid,mrsos1_varid,dummy2d(1:jlx,1:ilx), start = (/1,1,nrec/),count=(/ jlx, ilx,1/)) )
+        endif   
+        IF(IFSM2.EQ.1) then
+           dummy2d=transpose(sm2)*100
+           call check ( nf90_put_var(ncid,mrsos2_varid,dummy2d(1:jlx,1:ilx), start = (/1,1,nrec/),count=(/ jlx, ilx,1/)) )
+        endif   
+        IF(IFSM3.EQ.1) then
+           dummy2d=transpose(sm3)*100
+           call check ( nf90_put_var(ncid,mrsos3_varid,dummy2d(1:jlx,1:ilx), start = (/1,1,nrec/),count=(/ jlx, ilx,1/)) )
+        endif   
+        IF(IFSM4.EQ.1) then
+           dummy2d=transpose(sm4)*100
+           call check ( nf90_put_var(ncid,mrsos4_varid,dummy2d(1:jlx,1:ilx), start = (/1,1,nrec/),count=(/ jlx, ilx,1/)) )
+        endif   
+
+       ! IF(IFSM2.EQ.1) call writeout(ztype,nplevs,plev,ifecha,sm2,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,232)
+       ! IF(IFSM3.EQ.1) call writeout(ztype,nplevs,plev,ifecha,sm3,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,233)
+       ! IF(IFSM4.EQ.1) call writeout(ztype,nplevs,plev,ifecha,sm4,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,234)
+       ! IF(IFSW1.EQ.1) call writeout(ztype,nplevs,plev,ifecha,sw1,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,235)
+       ! IF(IFSW2.EQ.1) call writeout(ztype,nplevs,plev,ifecha,sw2,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,236)
+       ! IF(IFSW3.EQ.1) call writeout(ztype,nplevs,plev,ifecha,sw3,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,237)
+       ! IF(IFSW4.EQ.1) call writeout(ztype,nplevs,plev,ifecha,sw4,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,238)
+       ! IF(IFCAN.EQ.1) call writeout(ztype,nplevs,plev,ifecha,can,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,239)
+       ! IF(IFSNH.EQ.1) call writeout(ztype,nplevs,plev,ifecha,snh,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,240)
+       ! IF(IFSND.EQ.1) call writeout(ztype,nplevs,plev,ifecha,snd,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,241)
+       IF(IFWSD.EQ.1) call check( nf90_put_var(ncid,wsd_varid,transpose(wsd(1:ilx,1:jlx)), start = (/1,1,nrec/),count=(/ jlx, ilx, 1/)   ) )
+       ! IF(IFSSI.EQ.1) call writeout(ztype,nplevs,plev,ifecha,ssi,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,243)
+       ! IF(IFSIF.EQ.1) call writeout(ztype,nplevs,plev,ifecha,sif,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,245)
+       IF(IFSRO.EQ.1) then
+          dummy2d=transpose(mrros-mrros_old)/bhr(4,12)/60
+          call check( nf90_put_var(ncid,mrros_varid,dummy2d(1:jlx,1:ilx), start = (/1,1,nrec/),count=(/ jlx, ilx,1/)) )
+       endif
+       IF(IFURO.EQ.1) then
+          dummy2d=transpose(uro-uro_old)/bhr(4,12)/60
+          call check( nf90_put_var(ncid,uro_varid,dummy2d(1:jlx,1:ilx), start = (/1,1,nrec/),count=(/ jlx, ilx,1/)) )
+       endif
+       IF(IFT2M.EQ.1) call check( nf90_put_var(ncid,t2m_varid,transpose(t2m(1:ilx,1:jlx)), start = (/1,1,1,nrec/),count=(/ jlx, ilx, 1, 1/)) )
+       IF(IFQ2M.EQ.1) call check( nf90_put_var(ncid,huss_varid,transpose(q2m(1:ilx,1:jlx)), start = (/1,1,1,nrec/),count=(/ jlx, ilx, 1, 1/)   ) )
+        IF(IFUAS.EQ.1) call check( nf90_put_var(ncid,uas_varid,transpose(uas(1:ilx,1:jlx)), start = (/1,1,1,nrec/),count=(/ jlx, ilx, 1,1/)) )
+        IF(IFVAS.EQ.1) call check( nf90_put_var(ncid,vas_varid,transpose(vas(1:ilx,1:jlx)), start = (/1,1,1,nrec/),count=(/ jlx, ilx, 1,1/)) )
+       ! IF(IFALB.EQ.1) call writeout(ztype,nplevs,plev,ifecha,alb,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,252)
+       ! IF(IFABB.EQ.1) call writeout(ztype,nplevs,plev,ifecha,abb,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,253)
+       ! IF(IFASB.EQ.1) call writeout(ztype,nplevs,plev,ifecha,asb,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,254)
+        IF(IFPSLV.EQ.1) call check( nf90_put_var(ncid,psl_varid,transpose(pslv(1:ilx,1:jlx)), start = (/1,1,nrec/),count=(/ jlx, ilx, 1/)) )
+        IF(IFMV10.EQ.1) call check( nf90_put_var(ncid, mv10_varid,transpose(mv10(1:ilx,1:jlx)),start = (/1,1,1,nrec/), count = (/ jlx, ilx, 1,1/)) )
+       ! IF(IFDIR10.EQ.1) call writeout(ztype,nplevs,plev,ifecha,dir10,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,265)
+       ! IF(IFCREF.EQ.1) call writeout(ztype,nplevs,plev,ifecha,cref,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,256)
+       ! IF(IFICLW.EQ.1) call writeout(ztype,nplevs,plev,ifecha,iclw,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,257)
+       ! IF(IFIRNW.EQ.1) call writeout(ztype,nplevs,plev,ifecha,irnw,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,258)
+       ! IF(IFPWAT.EQ.1) call writeout(ztype,nplevs,plev,ifecha,pwat,mix,mjx,1,ix1,ix2,jx1,jx2,1,1,1,259)
+        IF(IFCLFR.EQ.1) then
+          dummy2d=transpose(clfrlo+clfrmi+clfrhi)/3
+          call check( nf90_put_var(ncid,clt_varid,dummy2d(1:jlx,1:ilx), start = (/1,1,nrec/),count=(/ jlx, ilx,1/)) )
+        endif  
+     
+!
+!  3d variables
+!
+       IF(IFU.EQ.1) then
+         if(ztype.eq.1)then
+             do i=1,mkx
+             dummy3d(:,:,i)=transpose(u(1:mix,1:mjx,i))
+             enddo
+           else
+             do i=1,nplevs
+             dummy3d(:,:,i)=transpose(u(1:mix,1:mjx,i))
+             enddo
+          endif
+         call check( nf90_put_var(ncid, ua_varid, dummy3d(1:jlx,1:ilx,:), start = (/1,1,1,nrec/), count = count4) )
+        endif
+       
+       IF(IFV.EQ.1) then
+         if(ztype.eq.1)then
+            do i=1,mkx
+            dummy3d(:,:,i)=transpose(v(1:mix,1:mjx,i))
+            enddo
+           else
+            do i=1,nplevs
+            dummy3d(:,:,i)=transpose(v(1:mix,1:mjx,i))
+            enddo
+          endif
+         call check( nf90_put_var(ncid, va_varid, dummy3d(1:jlx,1:ilx,:), start = (/1,1,1,nrec/), count = count4) )
+       endif
+                                                                                                                                          
+
+       
+       IF(IFW.EQ.1) then
+         if(ztype.eq.1)then 
+           do i=1,mkx
+             dummy3d(:,:,i)=transpose(w(1:mix,1:mjx,i))
+           enddo
+         else
+           do i=1,nplevs
+             dummy3d(:,:,i)=transpose(w(1:mix,1:mjx,i))
+           enddo
+         endif
+         call check( nf90_put_var(ncid, wa_varid, dummy3d(1:jlx,1:ilx,:), start = (/1,1,1,nrec/), count = count4) )
+       endif        
+
+       ! IF(IFPP.EQ.1) call writeout(ztype,nplevs,plev,ifecha,pp,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,303)
+       IF(IFT.EQ.1) then
+         if(ztype.eq.1)then 
+           do i=1,mkx
+             dummy3d(:,:,i)=transpose(t(1:mix,1:mjx,i))
+           enddo
+         else
+           do i=1,nplevs
+             dummy3d(:,:,i)=transpose(t(1:mix,1:mjx,i))
+           enddo
+         endif
+         call check( nf90_put_var(ncid, ta_varid, dummy3d(1:jlx,1:ilx,:), start = (/1,1,1,nrec/), count = count4) )
+       endif        
+       
+       IF(IFQ.EQ.1) then
+       !  if(ztype.eq.1)then
+       !    do i=1,mkx
+       !      dummy3d(:,:,i)=transpose(qv(1:mix,1:mjx,i))
+       !      enddo
+       !    else
+       !      do i=1,nplevs
+       !      dummy3d(:,:,i)=transpose(qv(1:mix,1:mjx,i))
+       !    enddo
+       !  endif
+       !call check( nf90_put_var(ncid, q_varid, dummy3d(1:jlx,1:ilx,:), start = (/1,1,1,nrec/), count = count4) )
+       
+       if(ztype.eq.1)then
+         do i=1,mkx
+            dummy3d(:,:,i)=transpose(qv(1:mix,1:mjx,i))/(transpose(qv(1:mix,1:mjx,i))+1)
+         enddo
+           else
+         do i=1,nplevs
+            dummy3d(:,:,i)=transpose(qv(1:mix,1:mjx,i))/(transpose(qv(1:mix,1:mjx,i))+1)
+         enddo
+         endif
+        call check( nf90_put_var(ncid, hus_varid, dummy3d(1:jlx,1:ilx,:), start = (/1,1,1,nrec/), count = count4) )
+       endif
+       
+       ! IF(IFCLW.EQ.1) call writeout(ztype,nplevs,plev,ifecha,qc,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,306)
+       ! IF(IFRNW.EQ.1) call writeout(ztype,nplevs,plev,ifecha,qr,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,307)
+       ! IF(IFRTND.EQ.1) call writeout(ztype,nplevs,plev,ifecha,rtnd,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,308)
+        IF(IFZ.EQ.1) then
+         if(ztype.eq.1)then 
+           do i=1,mkx
+             dummy3d(:,:,i)=transpose(z(1:mix,1:mjx,i))
+           enddo
+         else
+           do i=1,nplevs
+             dummy3d(:,:,i)=transpose(z(1:mix,1:mjx,i))
+           enddo
+         endif
+         call check( nf90_put_var(ncid, z_varid, dummy3d(1:jlx,1:ilx,:), start = (/1,1,1,nrec/), count = count4) )
+       endif        
+       ! IF(IFTKE.EQ.1) call writeout(ztype,nplevs,plev,ifecha,tke,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,310)
+       ! IF(IFICE.EQ.1) call writeout(ztype,nplevs,plev,ifecha,qi,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,311)
+       ! IF(IFSNOW.EQ.1) call writeout(ztype,nplevs,plev,ifecha,qs,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,312)
+       ! IF(IFGRAUP.EQ.1) call writeout(ztype,nplevs,plev,ifecha,qg,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,313)
+       ! IF(IFNCI.EQ.1) call writeout(ztype,nplevs,plev,ifecha,nci,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,314)
+       IF(IFTD.EQ.1)then
+         if(ztype.eq.1)then
+           do i=1,mkx
+           dummy3d(:,:,i)=transpose(td(1:mix,1:mjx,i))
+           enddo
+          else
+           do i=1,nplevs
+           dummy3d(:,:,i)=transpose(td(1:mix,1:mjx,i))
+           enddo
+         endif
+         call check( nf90_put_var(ncid, td_varid, dummy3d(1:jlx,1:ilx,:), start =(/1,1,1,nrec/), count = count4) )
+       endif
+                                                                                                                        
+       IF(IFRH.EQ.1)then
+         if(ztype.eq.1)then 
+           do i=1,mkx
+             dummy3d(:,:,i)=transpose(rh(1:mix,1:mjx,i))
+           enddo
+         else
+           do i=1,nplevs
+             dummy3d(:,:,i)=transpose(rh(1:mix,1:mjx,i))
+           enddo
+         endif
+         call check( nf90_put_var(ncid, rh_varid, dummy3d(1:jlx,1:ilx,:), start =(/1,1,1,nrec/), count = count4) )
+       endif
+       ! IF(IFRHO.EQ.1) call writeout(ztype,nplevs,plev,ifecha,rho,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,327)
+       ! IF(IFTH.EQ.1) call writeout(ztype,nplevs,plev,ifecha,theta,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,317)
+       ! IF(IFTHE.EQ.1) call writeout(ztype,nplevs,plev,ifecha,thetae,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,318)
+       IF(IFPRS.EQ.1) then
+         if(ztype.eq.1)then 
+           do i=1,mkx
+             dummy3d(:,:,i)=transpose(prs(1:mix,1:mjx,i))
+           enddo
+         else
+           do i=1,nplevs
+             dummy3d(:,:,i)=transpose(prs(1:mix,1:mjx,i))
+           enddo
+         endif
+         call check( nf90_put_var(ncid, prs_varid, dummy3d(1:jlx,1:ilx,:), start =(/1,1,1,nrec/), count = count4) )
+       endif
+       ! IF(IFVOR.EQ.1) call writeout(ztype,nplevs,plev,ifecha,vor,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,320)
+       ! IF(IFPV.EQ.1) call writeout(ztype,nplevs,plev,ifecha,pv,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,321)
+       ! IF(IFDIV.EQ.1) call writeout(ztype,nplevs,plev,ifecha,div,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,322)
+       ! IF(IFDIR.EQ.1) call writeout(ztype,nplevs,plev,ifecha,dir,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,323)
+       ! IF(IFMV.EQ.1) call writeout(ztype,nplevs,plev,ifecha,mv,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,328)
+       ! IF(IFTADV.EQ.1) call writeout(ztype,nplevs,plev,ifecha,tadv,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,324)
+       ! IF(IFDBZ.EQ.1) call writeout(ztype,nplevs,plev,ifecha,dbz,mix,mjx,mkx,ix1,ix2,jx1,jx2,ka,kb,kc,325)
+        IF(IFH.EQ.1) then
+           if(ztype.eq.1)then
+             do i=1,mkx
+                dummy3d(:,:,i)=transpose(h(1:mix,1:mjx,i))
+             enddo
+           else
+             do i=1,nplevs
+                dummy3d(:,:,i)=transpose(h(1:mix,1:mjx,i))
+             enddo
+           endif
+           call check( nf90_put_var(ncid, zg_varid, dummy3d(1:jlx,1:ilx,:), start =(/1,1,1,nrec/), count = count4) )
+         endif
+                                                                                                                         
+!
+!CCCCCCCCCCCC
+!
+
+    if(IFRC.eq.1) prc_old=prc
+    if(IFRN.eq.1) prls_old=prls
+    if(IFSRO.eq.1) mrros_old=mrros
+    if(IFURO.eq.1) uro_old=uro
+    iallo=1
+
+    if(ierr.eq.0) read(ifile,iostat=ierr)flag
+    if(nread.ge.timax) ierr=1
+    print *
+    print *
+  enddo
+
+
+  !call check( nf90_put_var(ncid, time_varid, time, start = (/1/), count = (/nrec/)))
+  if(ierr.lt.0) print *,'  End of file has been detected'
+  print*, 'Cerrando el netCDF'
+  call check( nf90_close(ncid) )
+  stop 
+
+  contains
+
+    subroutine check(status)
+      integer, intent ( in) :: status
+  
+      if(status /= nf90_noerr) then
+        print *, trim(nf90_strerror(status))
+        stop 2
+      end if
+    end subroutine check
+
+   function leap (year) result (leapflag)
+   implicit none
+
+   integer :: year
+   logical :: leapflag
+
+   leapflag = .false.
+   if (mod(year,4) .eq. 0)   leapflag = .true.
+   if (mod(year,100) .eq. 0) leapflag = .false.
+   if (mod(year,400) .eq. 0) leapflag = .true.
+   return
+   end function
+
+!   subroutine xhour(iy,im,id,ih,xhours)
+!   integer iy,im,id,ih,imm	! The input year, month, day and hour
+!
+!   integer xdays		! Used in calculating hours
+!   integer   inyear		! Used to work with input year
+!   integer inmon
+!
+!   integer xhours
+!   integer imonth(12)	! Used in calculating # days in this year
+!   integer imonthl(12)	! "					"
+!
+!   data imonth/31,28,31,30,31,30,31,31,30,31,30,31/
+!   data imonthl/31,29,31,30,31,30,31,31,30,31,30,31/
+!
+!   xdays=0
+!
+!   do inyear=1900,iy-1
+!!   do inyear=1950,iy-1
+!     if(leap(inyear)==.true.)then
+!       xdays=xdays+366
+!       !print*, inyear,366 
+!     else
+!       xdays=xdays+365
+!     !print*, inyear, 365
+!     endif
+!   enddo
+!   !print*, xdays
+!
+!   if(leap(iy)==.true.)then
+!     do inmon=1,im-1
+!       !print*, 'Mes', inmon, imonthl(inmon)
+!       xdays=xdays+imonthl(inmon)
+!     enddo
+!     xdays=xdays+(id-1)
+!   else
+!     do inmon=1,im-1
+!       !print*, 'Mes', inmon, imonth(inmon)
+!       xdays=xdays+imonth(inmon)
+!     enddo
+!     xdays=xdays+(id-1)
+!   endif
+!
+!   !print*, xdays
+!
+!   xhours=xdays*24
+!   !print*, xhours
+!
+!   xhours=xhours+(ih)
+!   !print*, xhours
+!   end subroutine xhour
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! MODIFIED FOR ECHOG, 360 DAYS YEARS VERSION OF XHOUR SUBROUTINE
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   subroutine xhour(iy,im,id,ih,imin,xhours)
+   integer iy,im,id,ih,imin,imm ! The input year, month, day and hour
+
+   integer xdays                ! Used in calculating hours
+   integer inyear               ! Used to work with input year
+   integer inmon
+
+   integer xhours
+
+
+   xdays=0
+
+   do inyear=1000,iy-1
+     xdays=xdays+360
+   enddo
+
+   do inmon=1,im-1
+     xdays=xdays+30
+   enddo
+   xdays=xdays+(id-1)
+
+   xhours=xdays*24
+
+   xhours=xhours+(ih)
+   if(imin.gt.30)xhours=xhours+1
+   !print*, xhours
+   end subroutine xhour
+
+
+
+   end program mm5tonetcdf
